@@ -6,6 +6,7 @@ import { RELEASE_HIDDEN_SETTINGS_SECTIONS } from '../src/shared/desktop-sidebar'
 const source = await readFile(new URL('../node_modules/@deepseek-ai/dsh-client-ui-settings-general/lib/client.js', import.meta.url), 'utf8')
 const rows = [
   { id: 'general', label: '通用设置' },
+  { id: 'models', label: '模型' },
   { id: 'plugins', label: '内置插件' },
   { id: 'market', label: '插件市场' },
   { id: 'token-usage', label: 'Token 用量' },
@@ -40,9 +41,9 @@ function openPanel({ hiddenSettingsSections, activeId, sections = rows }) {
 
 describe('Windows release settings navigation', () => {
   it('shows every settings entry in dev and opens the requested section', () => {
-    const panel = openPanel({ activeId: 'brand' })
+    const panel = openPanel({ activeId: 'models' })
     expect(panel.labels).toEqual(rows.map(row => row.label))
-    expect(panel.renderSlot).toHaveBeenCalledWith('settings.section', expect.anything(), { only: 'brand' })
+    expect(panel.renderSlot).toHaveBeenCalledWith('settings.section', expect.anything(), { only: 'models' })
   })
 
   it.each(RELEASE_HIDDEN_SETTINGS_SECTIONS)('falls back to the first visible section when opening %s', activeId => {
