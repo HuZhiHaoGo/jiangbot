@@ -1,5 +1,5 @@
 diff --git a/node_modules/@deepseek-ai/dsh-client-ui-settings-general/lib/client.js b/node_modules/@deepseek-ai/dsh-client-ui-settings-general/lib/client.js
-index fe7f3d6680..a48a370057 100644
+index fe7f3d6680..c3c7108e67 100644
 --- a/node_modules/@deepseek-ai/dsh-client-ui-settings-general/lib/client.js
 +++ b/node_modules/@deepseek-ai/dsh-client-ui-settings-general/lib/client.js
 @@ -63,7 +63,7 @@ window.__ModuleLoader__.load({
@@ -11,7 +11,18 @@ index fe7f3d6680..a48a370057 100644
  			document.head.appendChild(tag);
  		}
  		var SettingsRoot_module_css_default = {
-@@ -304,9 +304,9 @@ window.__ModuleLoader__.load({
+@@ -258,7 +258,9 @@ window.__ModuleLoader__.load({
+ 		* header button, a mask click, and document-level Escape (mounted only while
+ 		* open, so the listener lifetime is the panel's).
+ 		*/
+-		function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }) {
++		function SettingsPanel({ rows: allRows, renderSlot, activeId, onSelect, onClose }) {
++			const hiddenSections = window.dshDesktop?.hiddenSettingsSections;
++			const rows = hiddenSections ? allRows.filter((row) => !hiddenSections.includes(row.id)) : allRows;
+ 			const active = rows.find((r) => r.id === activeId)?.id ?? rows[0]?.id;
+ 			const titleId = (0, react.useId)();
+ 			const panel = (0, react.useRef)(null);
+@@ -304,9 +306,9 @@ window.__ModuleLoader__.load({
  							"data-modal-autofocus": active === void 0 ? "" : void 0,
  							children: renderSlot("settings.header", {})
  						}),
@@ -23,7 +34,7 @@ index fe7f3d6680..a48a370057 100644
  								className: SettingsRoot_module_css_default.navList,
  								children: rows.map((row) => (0, react_jsx_runtime.jsxs)("button", {
  									type: "button",
-@@ -327,7 +327,10 @@ window.__ModuleLoader__.load({
+@@ -327,7 +329,10 @@ window.__ModuleLoader__.load({
  										children: row.label
  									})]
  								}, row.id))
@@ -35,7 +46,7 @@ index fe7f3d6680..a48a370057 100644
  						}),
  						(0, react_jsx_runtime.jsxs)("div", {
  							className: SettingsRoot_module_css_default.header,
-@@ -372,10 +375,7 @@ window.__ModuleLoader__.load({
+@@ -372,10 +377,7 @@ window.__ModuleLoader__.load({
  			const connectionState = useConnectionState((state) => state);
  			const previousConnectionState = (0, react.useRef)(connectionState);
  			const onboardingSteps = useOnboardingSteps((s) => s);
@@ -47,7 +58,7 @@ index fe7f3d6680..a48a370057 100644
  			const onboardingStep = requestedOnboarding !== void 0 ? onboardingSteps.find((step) => step.id === requestedOnboarding) : onboardingActive ? onboardingSteps.find((step) => !completedOnboarding.has(step.id)) : void 0;
  			(0, react.useEffect)(() => {
  				if (onboardingActive) return;
-@@ -1544,6 +1544,10 @@ window.__ModuleLoader__.load({
+@@ -1544,6 +1546,10 @@ window.__ModuleLoader__.load({
  							kind: "single",
  							scope: "root"
  						},
