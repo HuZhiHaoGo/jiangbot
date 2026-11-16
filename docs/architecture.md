@@ -51,7 +51,7 @@ Electron logs/
 └── harness.log                  Desktop and Harness startup diagnostics
 ```
 
-Production and development builds use separate user-data roots. Application upgrades do not replace profile, plugin, workspace, session, or model configuration data.
+On Windows, `npm run dev` and the installed release default to the same `dsh-desktop` user-data root. The single-instance lock protects the shared directory. Development installers and non-Windows development launches default to `dsh-desktop-dev`, and `DSH_DEV_PROFILE` can select an isolated directory for development. Application upgrades do not replace profile, plugin, workspace, session, or model configuration data.
 
 ## Window and IPC security
 

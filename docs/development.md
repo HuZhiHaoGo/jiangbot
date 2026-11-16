@@ -23,7 +23,7 @@ npm run dev
 
 `npm run dev` prepares the Office runtime and templates, prepares PPT, then starts the Electron shell and Host. Unpackaged launches default to `<repository>/.build/office-runtime/primary-runtime`, the output of `office:prepare`; `DSH_DESKTOP_PRIMARY_RUNTIME_DIR` is optional and only needed to test a different runtime. Installed packages always use `Resources/office-runtime/primary-runtime` and ignore that development override.
 
-Development builds use the separate application name `DSH Desktop Dev` and the separate user-data directory `dsh-desktop-dev`, so they do not reuse production DSH Desktop data. Multiple development worktrees still share that development profile by default; avoid running them at the same time when testing profile, plugin, migration, or recovery changes.
+Development builds use the application name `DSH Desktop Dev`. On Windows, `npm run dev` defaults to `%APPDATA%\dsh-desktop`, sharing user data with the installed release. Electron allows one running instance per shared directory. Quit the running app from its tray menu before switching versions. Existing data in `%APPDATA%\dsh-desktop-dev` stays in place. Development installers and development launches on macOS and Linux default to `dsh-desktop-dev`.
 
 To run another worktree concurrently, set a distinct `DSH_DEV_PROFILE` directory name and unused loopback ports using `DSH_DEV_HARNESS_PORT` and `DSH_DEV_MOBILE_PORT`. For example, on macOS:
 
@@ -31,7 +31,7 @@ To run another worktree concurrently, set a distinct `DSH_DEV_PROFILE` directory
 DSH_DEV_PROFILE=dsh-desktop-dev-workbench DSH_DEV_HARNESS_PORT=43132 DSH_DEV_MOBILE_PORT=43133 npm run dev
 ```
 
-On PowerShell, set the same names through `$env:DSH_DEV_PROFILE`, `$env:DSH_DEV_HARNESS_PORT` and `$env:DSH_DEV_MOBILE_PORT` before `npm run dev`. The profile must be a directory name, separate from `dsh-desktop`; ports must be distinct integers from 1024 to 65535. These overrides are ignored by production builds. Defaults remain `dsh-desktop-dev`, Harness port 43130 and mobile port 43128.
+On PowerShell, set the same names through `$env:DSH_DEV_PROFILE`, `$env:DSH_DEV_HARNESS_PORT` and `$env:DSH_DEV_MOBILE_PORT` before `npm run dev`. Set a separate profile for experiments with migrations, plugins, or recovery. The profile must be a directory name separate from `dsh-desktop`. The ports must be distinct integers from 1024 to 65535. These overrides are ignored by production builds. Development port defaults are 43130 for Harness and 43128 for mobile.
 
 ## Workbench package lifecycle
 

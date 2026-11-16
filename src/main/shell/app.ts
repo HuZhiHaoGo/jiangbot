@@ -168,7 +168,7 @@ function configureDesktopIdentity(): void {
   const defaultProdName = isBisheng ? 'BISHENG' : 'DSH Desktop'
 
   const development = desktopDevelopmentBuild(metadata)
-  const environment = developmentEnvironment(development, 43129)
+  const environment = developmentEnvironment({ development, packaged: app.isPackaged, platform: process.platform }, 43129)
   if (development) {
     app.setName(`${defaultProdName} Dev`)
     const devDir = isBisheng

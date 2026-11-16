@@ -7,17 +7,22 @@ export function skipBlockingWindowsDevHmr(packaged: boolean, platform: NodeJS.Pl
   return !packaged && platform === 'win32'
 }
 
-/** Development overrides isolate concurrent worktrees without changing production identity. */
-export function developmentEnvironment(development: boolean, defaultHarnessPort: number, env: NodeJS.ProcessEnv = process.env): {
+/** A Windows checkout uses the installed profile by default. Overrides still allow isolated worktrees. */
+export function developmentEnvironment(
+  { development, packaged, platform }: { development: boolean; packaged: boolean; platform: NodeJS.Platform },
+  defaultHarnessPort: number,
+  env: NodeJS.ProcessEnv = process.env
+): {
   profile: string
   harnessPort: number
   mobilePort: number
 } {
   if (!development) return { profile: 'dsh-desktop', harnessPort: defaultHarnessPort, mobilePort: 43127 }
-  const profile = env.DSH_DEV_PROFILE || 'dsh-desktop-dev'
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(profile) || profile === 'dsh-desktop') {
+  const override = env.DSH_DEV_PROFILE
+  if (override && (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(override) || override.replace(/\.+$/u, '').toLowerCase() === 'dsh-desktop')) {
     throw new Error('DSH_DEV_PROFILE must be a separate development directory name.')
   }
+  const profile = override || (platform === 'win32' && !packaged ? 'dsh-desktop' : 'dsh-desktop-dev')
   const port = (value: string | undefined, fallback: number, name: string): number => {
     if (!value) return fallback
     const parsed = Number(value)

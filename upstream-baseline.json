@@ -8,6 +8,7 @@
       "upstream": ["apps/desktop/src/main.ts"],
       "divergences": [
         "数据目录是 userData/harness，不用 ~/.dsh",
+        "Windows 未打包开发启动与正式包默认共享 dsh-desktop；开发时可用 DSH_DEV_PROFILE 指定独立目录，不迁移旧的 dsh-desktop-dev",
         "不接入官方强制更新、欢迎窗、托盘和官方更新；启动页用现有鲸鱼页 splash.html",
         "最小壳只接启动、协议、窗口安全和后端生命周期",
         "启动前复制 profiles/web，关闭产品分析、官方账号界面和官方品牌，侧边栏品牌改挂 dsh-desktop-client-ui，普通 profile 再挂 dsh-desktop-workbenches、dsh-desktop-market-installer、dsh-desktop-office 和 dsh-ppt-composer；Safe Mode 不挂工作台、市场、Office 和 PPT，且不把账号会话接到用量页或充值页",
