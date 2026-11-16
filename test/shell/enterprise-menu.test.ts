@@ -9,8 +9,8 @@ describe('enterprise entry', () => {
     expect(enterpriseMenuLabel('en-US')).toBe('Explore Enterprise')
     expect(updateMenuLabel('zh-CN')).toBe('检查更新…')
     expect(updateMenuLabel('en-US')).toBe('Check for Updates…')
-    expect(aboutMenuLabel('zh-CN')).toBe('关于 DSH Desktop')
-    expect(aboutMenuLabel('en-US')).toBe('About DSH Desktop')
+    expect(aboutMenuLabel('zh-CN')).toBe('关于 匠宝')
+    expect(aboutMenuLabel('en-US')).toBe('About 匠宝')
     expect(safeModeMenuLabel('zh-CN')).toBe('以安全模式重启…')
     expect(safeModeMenuLabel('en-US')).toBe('Restart as Safe Mode…')
     expect(aboutUsesPage('dsh-app://app/', 'dsh-app')).toBe(true)
@@ -34,7 +34,7 @@ describe('enterprise entry', () => {
     const quit = vi.fn()
     const menu = buildDarwinDesktopMenu({
       locale,
-      appName: 'DSH Desktop Shell',
+      appName: '匠宝 Shell',
       restart,
       restartSafeMode,
       showHarnessLog,
@@ -49,14 +49,14 @@ describe('enterprise entry', () => {
     submenu[0]?.click?.()
     expect(restart).toHaveBeenCalledOnce()
     const standard = standardMenuLabels(locale)
-    expect(menu.map(item => item.label)).toEqual(['DSH Desktop Shell', standard.edit, standard.window])
+    expect(menu.map(item => item.label)).toEqual(['匠宝 Shell', standard.edit, standard.window])
     expect(menu[1]?.submenu?.[0]).toMatchObject({ role: 'undo', label: standard.undo })
     expect(menu[1]?.submenu?.[6]).toMatchObject({ role: 'selectAll', label: standard.selectAll })
     expect(menu[2]?.submenu?.[0]).toMatchObject({ role: 'minimize', label: standard.minimize })
     expect(menu[2]?.submenu?.[1]).toMatchObject({ role: 'close', label: standard.close })
     const withoutSafeMode = buildDarwinDesktopMenu({
       locale,
-      appName: 'DSH Desktop Shell',
+      appName: '匠宝 Shell',
       restart,
       showHarnessLog,
       hide,
@@ -73,10 +73,10 @@ describe('enterprise entry', () => {
   it('places the file menu after the application menu', () => {
     const labels = shortcutFileMenuLabels('zh-CN')
     const menu = insertFileMenu([
-      { label: 'DSH Desktop Shell', submenu: [{ label: '关于 DSH Desktop' }] },
+      { label: '匠宝 Shell', submenu: [{ label: '关于 匠宝' }] },
       { label: 'Edit' }
     ], { label: labels.fileMenu, submenu: [{ label: labels.closePage }] })
-    expect(menu[0]?.submenu?.[0]?.label).toBe('关于 DSH Desktop')
+    expect(menu[0]?.submenu?.[0]?.label).toBe('关于 匠宝')
     expect(menu[1]?.label).toBe('文件')
     expect(menu[1]?.submenu?.[0]?.label).toBe('关闭页面或窗口')
     expect(menu[2]?.label).toBe('Edit')

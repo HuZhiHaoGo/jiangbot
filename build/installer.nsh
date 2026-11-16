@@ -86,6 +86,7 @@
     FunctionEnd
 
     !macro customInstall
+      !insertmacro dshRemoveLegacyShortcuts
       !insertmacro dshFinishDirectories
       ; Ensure Chromium AppContainer sandbox (GPU and Renderer processes) can read installed
       ; files even when the installer was executed with elevated Administrator permissions.

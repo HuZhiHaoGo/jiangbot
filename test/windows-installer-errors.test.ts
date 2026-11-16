@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -47,11 +48,17 @@ Name "DSH failure fixture"
 OutFile "${executable}"
 RequestExecutionLevel user
 !define APP_FILENAME "dsh-fixture"
+!define APP_EXECUTABLE_FILENAME "JiangBot.exe"
+!define INSTALL_REGISTRY_KEY "Software\JiangBotInstallerTest\${randomUUID()}"
 !define DSH_SEVENZIP_PATH "${payload}"
 !define DSH_SEVENZIP_LICENSE_DIR "${temp}"
 !include "FileFunc.nsh"
 Var parameters
 Var scenario
+Var oldDesktopLink
+Var newDesktopLink
+Var oldStartMenuLink
+Var newStartMenuLink
 !macro installApplicationFiles
   !insertmacro dshExtractPayload "$PLUGINSDIR\missing.7z"
 !macroend
@@ -67,6 +74,31 @@ Section
     !insertmacro dshStageApplication
   ${'$'}{ElseIf} $scenario == "extract"
     !insertmacro dshExtractPayload "$PLUGINSDIR\missing.7z"
+  ${'$'}{ElseIf} $scenario == "legacy"
+    SetShellVarContext current
+    WriteRegStr HKCU "${'$'}{INSTALL_REGISTRY_KEY}" InstallLocation "$INSTDIR"
+    !insertmacro dshFindLegacyUpgrade
+    DeleteRegKey HKCU "${'$'}{INSTALL_REGISTRY_KEY}"
+    ${'$'}{If} $dshLegacyUpgrade != "1"
+      SetErrorLevel 98
+      Quit
+    ${'$'}{EndIf}
+    StrCpy $oldDesktopLink "$INSTDIR\..\legacy-desktop.lnk"
+    StrCpy $newDesktopLink "$INSTDIR\..\new-desktop.lnk"
+    StrCpy $oldStartMenuLink "$INSTDIR\..\legacy-menu.lnk"
+    StrCpy $newStartMenuLink "$INSTDIR\..\new-menu.lnk"
+    StrCpy $dshFinalDirectory $INSTDIR
+    StrCpy $dshNewDirectory "$INSTDIR.new"
+    StrCpy $dshOldDirectory "$INSTDIR.old"
+    Call dshPromoteDirectories
+    ${'$'}{If} ${'$'}{Errors}
+      SetErrorLevel 2
+      Quit
+    ${'$'}{EndIf}
+    !insertmacro dshRemoveLegacyShortcuts
+    !insertmacro dshFinishDirectories
+    SetErrorLevel 0
+    Quit
   ${'$'}{Else}
     StrCpy $dshFinalDirectory $INSTDIR
     StrCpy $dshNewDirectory "$INSTDIR.new"
@@ -88,6 +120,24 @@ SectionEnd
       execFileSync(tool.path, [process.platform === 'win32' ? '/V2' : '-V2', script], { timeout: 30_000, env: { ...process.env, ...tool.env } })
       expect((await readFile(executable)).subarray(0, 2).toString()).toBe('MZ')
       if (process.platform !== 'win32') return
+
+      const target = join(temp, 'legacy')
+      await mkdir(target)
+      await mkdir(`${target}.new`)
+      await writeFile(join(target, 'DSH Desktop.exe'), 'previous binary')
+      await writeFile(join(`${target}.new`, 'JiangBot.exe'), 'new binary')
+      for (const file of ['legacy-desktop.lnk', 'legacy-menu.lnk', 'new-desktop.lnk', 'user-data.txt']) {
+        await writeFile(join(temp, file), 'preserved outside the application directory')
+      }
+      const upgrade = spawnSync(executable, ['/S', '/CASE=legacy', `/ROOT=${target}`], { timeout: 15_000 })
+      expect(upgrade.error).toBeUndefined()
+      expect(upgrade.status).toBe(0)
+      await expect(readFile(join(target, 'JiangBot.exe'), 'utf8')).resolves.toBe('new binary')
+      await expect(readFile(join(target, 'DSH Desktop.exe'))).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(join(temp, 'legacy-desktop.lnk'))).rejects.toMatchObject({ code: 'ENOENT' })
+      for (const file of ['new-desktop.lnk', 'legacy-menu.lnk', 'user-data.txt']) {
+        await expect(readFile(join(temp, file), 'utf8')).resolves.toBe('preserved outside the application directory')
+      }
 
       for (const scenario of ['staging', 'extract', 'backup', 'promote', 'rollback']) {
         const target = join(temp, scenario)

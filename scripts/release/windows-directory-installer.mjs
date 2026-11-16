@@ -63,9 +63,12 @@ export function directoryInstallSection(source) {
   StrCpy $R0 0
   ClearErrors
 !macroend`)
-  result = replaceOnce(result, '!insertmacro setLinkVars', '!insertmacro setLinkVars\n!insertmacro dshStageApplication')
+  result = replaceOnce(result, '!insertmacro setLinkVars', '!insertmacro setLinkVars\n!insertmacro dshFindLegacyUpgrade\n!insertmacro dshStageApplication')
+  result = replaceOnce(result, 'Var /GLOBAL keepShortcuts', '!insertmacro dshCheckLegacyFallback\n\nVar /GLOBAL keepShortcuts')
   result = replaceOnce(result, '!insertmacro installApplicationFiles', 'Call dshPromoteDirectories\nIfErrors 0 +3\n  SetErrorLevel 2\n  Quit')
   // The staged payload already contains the uninstaller icon.
+  result = replaceOnce(result, '!insertmacro addStartMenuLink $keepShortcuts',
+    '${if} $dshLegacyUpgrade == "1"\n  StrCpy $keepShortcuts "false"\n${endif}\n!insertmacro addStartMenuLink $keepShortcuts')
   result = replaceOnce(result, '!ifdef UNINSTALLER_ICON\n  File /oname=uninstallerIcon.ico "${UNINSTALLER_ICON}"\n!endif\n', '')
   return result
 }

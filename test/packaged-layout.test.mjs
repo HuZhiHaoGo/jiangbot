@@ -11,6 +11,7 @@ const { packagedLayout } = require('../scripts/verify/packaged-layout.cjs')
 // Load the public entry first: builder's platform classes share circular imports.
 require('app-builder-lib')
 const { LinuxPackager } = require('app-builder-lib/out/linuxPackager.js')
+const { WinPackager } = require('app-builder-lib/out/winPackager.js')
 const { createPackage } = require('@electron/asar')
 const FpmTarget = require('app-builder-lib/out/targets/FpmTarget.js').default
 const packageJson = require('../package.json')
@@ -66,14 +67,22 @@ it('honors builder naming precedence and the package-name fallback, not the disp
   }
 })
 
-it.each(['DSH Desktop', 'DSH Desktop Dev'])('preserves macOS Helper and Windows exe naming for %s', product => {
-  const packager = { appInfo: { productFilename: product }, executableName: 'ignored-linux-name' }
+it.each([['匠宝', packageJson.build, 'JiangBot'], ['匠宝 Dev', devConfig, 'JiangBotDev']])(
+  'separates the Windows executable from the product name %s', (product, config, executable) => {
+    const packager = new WinPackager({ config, metadata: { ...packageJson, ...config.extraMetadata },
+      options: {}, buildResourcesDir: join(root, 'build') })
+    expect(packager.appInfo.productName).toBe(product)
+    expect(packagedLayout({ appOutDir: root, electronPlatformName: 'win32', packager })).toEqual({
+      resources: join(root, 'resources'), executable: join(root, `${executable}.exe`)
+    })
+  }
+)
+
+it.each(['匠宝', '匠宝 Dev'])('finds the macOS Helper inside the %s app', product => {
+  const packager = { appInfo: { productFilename: product } }
   expect(packagedLayout({ appOutDir: root, electronPlatformName: 'darwin', packager })).toEqual({
     resources: join(root, `${product}.app`, 'Contents', 'Resources'),
     executable: join(root, `${product}.app`, 'Contents', 'Frameworks', `${product} Helper.app`, 'Contents', 'MacOS', `${product} Helper`)
-  })
-  expect(packagedLayout({ appOutDir: root, electronPlatformName: 'win32', packager })).toEqual({
-    resources: join(root, 'resources'), executable: join(root, `${product}.exe`)
   })
 })
 

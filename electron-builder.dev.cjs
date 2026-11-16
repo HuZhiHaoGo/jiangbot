@@ -3,14 +3,14 @@ const packageJson = require('./package.json')
 module.exports = {
   ...packageJson.build,
   appId: 'io.dsh.desktop.dev',
-  productName: 'DSH Desktop Dev',
+  productName: '匠宝 Dev',
   directories: {
     ...packageJson.build.directories,
     output: 'dist-dev'
   },
   extraMetadata: {
     name: 'dsh-desktop-dev',
-    productName: 'DSH Desktop Dev',
+    productName: '匠宝 Dev',
     dshDesktopChannel: 'development'
   },
   artifactName: 'dsh-desktop-dev-${os}-${arch}.${ext}',
@@ -19,9 +19,13 @@ module.exports = {
     executableName: 'dsh-desktop-dev',
     artifactName: 'dsh-desktop-dev-linux-${arch}-${version}.${ext}'
   },
+  win: {
+    ...packageJson.build.win,
+    executableName: 'JiangBotDev'
+  },
   nsis: {
     ...packageJson.build.nsis,
-    artifactName: 'dsh-desktop-dev-windows-${arch}-setup.${ext}'
+    artifactName: 'JiangBot-dev-windows-${arch}-setup.${ext}'
   },
   publish: null
 }

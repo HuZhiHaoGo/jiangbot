@@ -166,7 +166,7 @@ function render(): void {
   const headline = updateHeadline(status, locale)
   const body = element('div', 'body')
   const title = element('p', 'title')
-  title.textContent = status.phase === 'up-to-date' ? `DSH Desktop v${status.currentVersion}` : headline.title
+  title.textContent = status.phase === 'up-to-date' ? `匠宝 v${status.currentVersion}` : headline.title
   body.appendChild(title)
   row.appendChild(body)
 
@@ -406,7 +406,7 @@ function renderAbout(): void {
   header.appendChild(switcher)
   card.appendChild(header)
   const title = element('h2', 'about-title')
-  title.textContent = 'DSH Desktop'
+  title.textContent = '匠宝'
   card.appendChild(title)
   const version = element('p', 'about-line')
   version.textContent = `v${info.desktopVersion} (${a('bundled')} Harness ${info.harnessVersion ?? a('unknown')}`

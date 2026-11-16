@@ -8,6 +8,7 @@
       "upstream": ["apps/desktop/src/main.ts"],
       "divergences": [
         "数据目录是 userData/harness，不用 ~/.dsh",
+        "产品显示名为匠宝，Windows 主程序名为 JiangBot.exe，既有 appId 和用户数据目录继续沿用",
         "Windows 未打包开发启动与正式包默认共享 dsh-desktop；开发时可用 DSH_DEV_PROFILE 指定独立目录，不迁移旧的 dsh-desktop-dev",
         "不接入官方强制更新、欢迎窗、托盘和官方更新；启动页用现有鲸鱼页 splash.html",
         "最小壳只接启动、协议、窗口安全和后端生命周期",

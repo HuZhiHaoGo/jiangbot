@@ -19,7 +19,7 @@ interface Registration {
 }
 
 describe('DSH Desktop client slot occupants', () => {
-  it('registers one occupant per brand seat and keeps the official name mark-free', async () => {
+  it('registers one occupant per brand seat and displays the product name as text', async () => {
     const source = await readFile(
       path.join(projectRoot, 'packages', 'dsh-desktop-client-ui', 'client.js'),
       'utf8'
@@ -60,7 +60,6 @@ describe('DSH Desktop client slot occupants', () => {
       type,
       props: { ...props, children }
     })
-    const BrandWordmark = vi.fn()
     const FishLogo = vi.fn()
     const plugin = definition!.factory((id) => {
       if (id === 'react') {
@@ -71,7 +70,7 @@ describe('DSH Desktop client slot occupants', () => {
         }
       }
       if (id === '@deepseek-ai/dsh-client-ui-primitives') {
-        return { BrandWordmark, FishLogo }
+        return { FishLogo }
       }
       throw new Error(`Unexpected client dependency: ${id}`)
     })
@@ -119,8 +118,8 @@ describe('DSH Desktop client slot occupants', () => {
     const sidebarName = registrations.find(
       ({ config }) => config.name === 'sidebar.brand.name'
     )!.component({}) as { type: unknown; props: Record<string, unknown> }
-    expect(sidebarName.type).toBe(BrandWordmark)
-    expect(sidebarName.props.includeMark).toBe(false)
+    expect(sidebarName.type).toBe('span')
+    expect(sidebarName.props.children).toEqual(['匠宝'])
 
     const sidebarMark = registrations.find(
       ({ config }) => config.name === 'sidebar.brand.mark'

@@ -1,4 +1,4 @@
-# DSH Desktop development guide
+# 匠宝 development guide
 
 This guide covers local development, validation, patch maintenance, and target-native packaging. For the runtime design, see [Architecture](architecture.md). For formal releases, see the [release runbook](release-runbook.md).
 
@@ -23,7 +23,7 @@ npm run dev
 
 `npm run dev` prepares the Office runtime and templates, prepares PPT, then starts the Electron shell and Host. Unpackaged launches default to `<repository>/.build/office-runtime/primary-runtime`, the output of `office:prepare`; `DSH_DESKTOP_PRIMARY_RUNTIME_DIR` is optional and only needed to test a different runtime. Installed packages always use `Resources/office-runtime/primary-runtime` and ignore that development override.
 
-Development builds use the application name `DSH Desktop Dev`. On Windows, `npm run dev` defaults to `%APPDATA%\dsh-desktop`, sharing user data with the installed release. Electron allows one running instance per shared directory. Quit the running app from its tray menu before switching versions. Existing data in `%APPDATA%\dsh-desktop-dev` stays in place. Development installers and development launches on macOS and Linux default to `dsh-desktop-dev`.
+Development builds use the application name `匠宝 Dev`. On Windows, `npm run dev` defaults to `%APPDATA%\dsh-desktop`, sharing user data with the installed release. Electron allows one running instance per shared directory. Quit the running app from its tray menu before switching versions. Existing data in `%APPDATA%\dsh-desktop-dev` stays in place. Development installers and development launches on macOS and Linux default to `dsh-desktop-dev`.
 
 To run another worktree concurrently, set a distinct `DSH_DEV_PROFILE` directory name and unused loopback ports using `DSH_DEV_HARNESS_PORT` and `DSH_DEV_MOBILE_PORT`. For example, on macOS:
 
@@ -137,6 +137,8 @@ npm run package:dev:linux:x64
 Do not invoke `electron-builder --win` from macOS or Linux for a distributable Windows package. The target verification scripts intentionally reject host/target mismatches.
 
 `npm run package:win` embeds the `dshDesktopHideSidebarManagement` flag in the application's package metadata. The shipped sidebar hides Workbenches, Plugins, and the two plugin actions in the sidebar More menu. The Settings navigation also hides Built-in Plugins, Plugin Market, and Branding. Development launches and other packaging commands retain these entries. The Harness 0.2.2-rc.1 sidebar, entry customization, and general settings patches limit the displayed rows without changing the slot contracts or the plugin graph. Replace the visibility checks when Harness exposes equivalent per-entry visibility controls.
+
+The Windows release installs as 匠宝 with `JiangBot.exe` and produces `dist/JiangBot-windows-x64-setup.exe`. The development installer uses `JiangBotDev.exe` and produces `dist-dev/JiangBot-dev-windows-x64-setup.exe`. The Windows application IDs and the `dsh-desktop` user data directory are retained for upgrades. A registered upgrade in the same install directory replaces the legacy executable and its desktop and Start menu shortcuts.
 
 For local unsigned development packages, use the corresponding `package:dev:*` command. Packages run Host and package commands through the packaged Electron runtime (the Helper in Node mode on macOS, the executable in Node mode on Windows); no standalone `node_modules/node` may be present under `app.asar.unpacked`. Verify the packaged native-module, pnpm and Harness smokes, then the final signed installer's separate installed-app smoke before handoff. Office preparation is included in dev, build and test: it fetches hash-locked native Python and wheels into `.build/office-runtime`, outside ASAR, and ships no second Node runtime. See [Office runtime](office-runtime.md). The locked Electron 44.7.0 must remain compatible with the native loader: `scripts/verify/verify-target.mjs` fails packaging when Electron in Node mode cannot load it, and changing Electron still requires a new Windows package qualification. Before packaging, `node scripts/verify/probe-electron-node-runtime.mjs` boots Harness from the repository through Electron Node mode with a disposable `DSH_HOME` and checks an authenticated HTTP response; the Windows CI job runs it on every build.
 

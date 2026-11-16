@@ -304,7 +304,7 @@ jobs:
       - name: Verify signed and notarized ${{ matrix.label }} app
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'signed' || inputs.mode == 'prerelease'))
         run: |
-          app_path="dist/${{ matrix.app-directory }}/DSH Desktop.app"
+          app_path="dist/${{ matrix.app-directory }}/匠宝.app"
           codesign --verify --deep --strict --verbose=2 "$app_path"
           spctl --assess --type execute --verbose=4 "$app_path"
           for attempt in 1 2 3 4 5 6; do
@@ -455,7 +455,7 @@ jobs:
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.checks == 'extended')
         shell: pwsh
         env:
-          SMOKE_EXE: ${{ (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'signed' || inputs.mode == 'prerelease'))) && 'dist\win-unpacked\DSH Desktop.exe' || 'dist-dev\win-unpacked\DSH Desktop Dev.exe' }}
+          SMOKE_EXE: ${{ (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'signed' || inputs.mode == 'prerelease'))) && 'dist\win-unpacked\JiangBot.exe' || 'dist-dev\win-unpacked\JiangBotDev.exe' }}
         run: |
           # Run outside the checkout: otherwise Node can silently resolve a
           # missing packaged dependency from the repository's node_modules.
@@ -540,9 +540,9 @@ jobs:
         with:
           name: windows-x64-unsigned
           path: |
-            dist/dsh-desktop-windows-x64-setup.exe
+            dist/JiangBot-windows-x64-setup.exe
             dist/win-unpacked.tar.gz
-            dist/dsh-desktop-windows-x64-setup.exe.blockmap
+            dist/JiangBot-windows-x64-setup.exe.blockmap
             dist/latest.yml
           compression-level: 0
           if-no-files-found: error
@@ -553,8 +553,8 @@ jobs:
           name: windows-x64-dev
           retention-days: 3
           path: |
-            dist-dev/dsh-desktop-dev-windows-x64-setup.exe
-            dist-dev/dsh-desktop-dev-windows-x64-setup.exe.blockmap
+            dist-dev/JiangBot-dev-windows-x64-setup.exe
+            dist-dev/JiangBot-dev-windows-x64-setup.exe.blockmap
             dist-dev/latest.yml
           compression-level: 0
           if-no-files-found: error
@@ -678,7 +678,7 @@ jobs:
               --tsmode RFC3161 \
               --tsretries 3 \
               --tsretrywait 10 \
-              --name 'DSH Desktop' \
+              --name '匠宝' \
               --url https://www.dshdesktop.com \
               --verbose \
               "$installer"; then
@@ -719,8 +719,8 @@ jobs:
           name: windows-x64
           retention-days: 7
           path: |
-            ${{ runner.temp }}/dsh-windows-${{ github.run_id }}/release/dsh-desktop-windows-x64-setup.exe
-            ${{ runner.temp }}/dsh-windows-${{ github.run_id }}/release/dsh-desktop-windows-x64-setup.exe.blockmap
+            ${{ runner.temp }}/dsh-windows-${{ github.run_id }}/release/JiangBot-windows-x64-setup.exe
+            ${{ runner.temp }}/dsh-windows-${{ github.run_id }}/release/JiangBot-windows-x64-setup.exe.blockmap
             ${{ runner.temp }}/dsh-windows-${{ github.run_id }}/release/latest.yml
           compression-level: 0
           if-no-files-found: error
@@ -951,7 +951,7 @@ jobs:
             gh release create "$RELEASE_TAG" release-assets/* \
               --verify-tag \
               --notes-file "$notes" \
-              --title "DSH Desktop $RELEASE_TAG" \
+              --title "匠宝 $RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY"
           fi
       - name: Mirror release assets to ModelScope
@@ -1127,7 +1127,7 @@ jobs:
               --prerelease \
               --target "$GITHUB_SHA" \
               --generate-notes \
-              --title "DSH Desktop $RELEASE_TAG（预发布）" \
+              --title "匠宝 $RELEASE_TAG（预发布）" \
               --repo "$GITHUB_REPOSITORY"
           fi
       - name: Mirror pre-release assets to ModelScope

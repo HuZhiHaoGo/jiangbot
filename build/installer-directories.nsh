@@ -8,6 +8,57 @@ Var dshOldDirectory
 Var dshOldMoved
 Var dshNewMoved
 Var dshRenameRetries
+Var dshLegacyExe
+Var dshLegacyUpgrade
+
+!macro dshFindLegacyUpgrade
+  StrCpy $dshLegacyUpgrade ""
+  StrCpy $dshLegacyExe ""
+  ${If} "${APP_EXECUTABLE_FILENAME}" == "JiangBot.exe"
+    StrCpy $dshLegacyExe "DSH Desktop.exe"
+  ${ElseIf} "${APP_EXECUTABLE_FILENAME}" == "JiangBotDev.exe"
+    StrCpy $dshLegacyExe "DSH Desktop Dev.exe"
+  ${EndIf}
+  ${If} $dshLegacyExe != ""
+  ${AndIf} ${FileExists} "$INSTDIR\$dshLegacyExe"
+    ReadRegStr $R0 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" InstallLocation
+    ${If} $R0 == $INSTDIR
+      StrCpy $dshLegacyUpgrade "1"
+    ${EndIf}
+  ${EndIf}
+!macroend
+
+; The standard running-app check finds the old EXE by install path when
+; PowerShell is available. Its tasklist fallback only checks the new filename.
+!macro dshCheckLegacyFallback
+  ${If} $dshLegacyUpgrade == "1"
+  ${AndIf} $IsPowerShellAvailable != 0
+    dsh_wait_for_legacy_app:
+    !insertmacro FIND_PROCESS "$dshLegacyExe" $R0
+    ${If} $R0 == 0
+      !insertmacro dshInstallErrorText "Exit the previous version from the notification area, then choose Retry." "请从系统托盘退出旧版 DSH Desktop，再点击“重试”。"
+      MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$dshInstallError" /SD IDCANCEL IDRETRY dsh_wait_for_legacy_app
+      SetErrorLevel 2
+      Quit
+    ${EndIf}
+  ${EndIf}
+!macroend
+
+; Only remove registered shortcuts for a same-directory upgrade and only
+; after the corresponding JiangBot shortcut has been created successfully.
+!macro dshRemoveLegacyShortcuts
+  ${If} $dshLegacyUpgrade == "1"
+    ${If} $oldDesktopLink != $newDesktopLink
+    ${AndIf} ${FileExists} "$newDesktopLink"
+      Delete "$oldDesktopLink"
+    ${EndIf}
+    ${If} $oldStartMenuLink != $newStartMenuLink
+    ${AndIf} ${FileExists} "$newStartMenuLink"
+      Delete "$oldStartMenuLink"
+    ${EndIf}
+    ClearErrors
+  ${EndIf}
+!macroend
 
 ; Retry brief sharing/locking races before presenting the existing recovery dialog.
 ; The caller resets the budget on each explicit user Retry.

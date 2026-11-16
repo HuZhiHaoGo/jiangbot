@@ -165,9 +165,13 @@ function configureDesktopIdentity(): void {
     process.execPath.toLowerCase().includes('bisheng') ||
     hasEnterprisePlugin()
   )
-  const defaultProdName = isBisheng ? 'BISHENG' : 'DSH Desktop'
+  const defaultProdName = isBisheng ? 'BISHENG' : '匠宝'
 
   const development = desktopDevelopmentBuild(metadata)
+  if (process.platform === 'win32' && !isBisheng) {
+    // Match the AppUserModelID in the installer shortcuts across the rename.
+    app.setAppUserModelId(development ? 'io.dsh.desktop.dev' : 'io.dsh.desktop')
+  }
   const environment = developmentEnvironment({ development, packaged: app.isPackaged, platform: process.platform }, 43129)
   if (development) {
     app.setName(`${defaultProdName} Dev`)
@@ -178,7 +182,7 @@ function configureDesktopIdentity(): void {
     return
   }
   if (!isBisheng) {
-    app.setName('DSH Desktop')
+    app.setName(defaultProdName)
     // Keep the historical lowercase directory. Deriving it from the product name
     // would hide the existing sessions on an ordinary upgrade.
     app.setPath('userData', join(app.getPath('appData'), 'dsh-desktop'))
@@ -407,7 +411,7 @@ async function presentAbout(window: BrowserWindow, locale: HarnessLocale): Promi
   const result = await dialog.showMessageBox(window, {
     type: 'info',
     title: app.name,
-    message: updateText(locale, 'about').replace('DSH Desktop', app.name),
+    message: updateText(locale, 'about').replace('匠宝', app.name),
     detail: aboutDetail(desktopVersion, harnessVersion, locale),
     buttons: [updateText(locale, 'checkForUpdates'), updateText(locale, 'close')],
     defaultId: 1,
@@ -637,7 +641,7 @@ async function main(): Promise<void> {
     }
     windowsTray.setToolTip(app.name)
     windowsTray.setContextMenu(Menu.buildFromTemplate([
-      { label: desktopDailyText(menuLocale, 'trayShow').replace('DSH Desktop', app.name), click: showMainWindow },
+      { label: desktopDailyText(menuLocale, 'trayShow').replace('匠宝', app.name), click: showMainWindow },
       { type: 'separator' },
       { label: desktopMenuMessages(menuLocale).exit, click: () => { app.quit() } }
     ]))
@@ -1193,7 +1197,7 @@ async function main(): Promise<void> {
   ipcMain.removeHandler('desktop-titlebar:set-theme')
   ipcMain.handle('desktop-titlebar:set-theme', (event, isDark: unknown) => {
     const owner = assertMain(event)
-    if (typeof isDark !== 'boolean') throw new Error('The DSH Desktop titlebar theme must be a boolean.')
+    if (typeof isDark !== 'boolean') throw new Error('The desktop titlebar theme must be a boolean.')
     if (usesDesktopCaption(process.platform)) {
       owner.setTitleBarOverlay(windowsTitleBarOverlay(isDark))
       owner.setBackgroundColor(windowsChromeBackground(isDark))

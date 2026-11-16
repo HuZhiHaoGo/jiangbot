@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
   "version": "0.12.1",
-  "description": "A cross-platform desktop shell for DeepSeek Harness.",
+  "description": "匠宝 · A cross-platform desktop shell for DeepSeek Harness.",
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
@@ -324,7 +324,7 @@
   },
   "build": {
     "appId": "io.dsh.desktop",
-    "productName": "DSH Desktop",
+    "productName": "匠宝",
     "asar": true,
     "asarUnpack": [
       "**/*.{node,dylib,dll,so,exe}",
@@ -496,7 +496,7 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "DSH Desktop uses your microphone to transcribe speech into message drafts."
+        "NSMicrophoneUsageDescription": "匠宝 uses your microphone to transcribe speech into message drafts."
       },
       "gatekeeperAssess": false,
       "signIgnore": [
@@ -537,6 +537,7 @@
       "artifactName": "dsh-desktop-linux-${arch}-${version}.${ext}"
     },
     "win": {
+      "executableName": "JiangBot",
       "icon": "build/icon.ico",
       "verifyUpdateCodeSignature": true,
       "signtoolOptions": {
@@ -556,7 +557,7 @@
       ]
     },
     "nsis": {
-      "artifactName": "dsh-desktop-windows-${arch}-setup.${ext}",
+      "artifactName": "JiangBot-windows-${arch}-setup.${ext}",
       "include": "build/installer.nsh",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
