@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import vm from 'node:vm'
+import { createRequire } from 'node:module'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
 import { describe, expect, it, vi } from 'vitest'
@@ -12,6 +13,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 const projectRoot = path.resolve(import.meta.dirname, '..')
+// jsdom has no bundled declarations; constrain this adapter to the DOM APIs used here.
+const { JSDOM } = createRequire(import.meta.url)('jsdom') as {
+  JSDOM: new (html: string) => { window: Window & typeof globalThis }
+}
 
 interface Registration {
   config: { name: string; id?: string; order?: number; priority?: number }
@@ -112,6 +117,30 @@ describe('DSH Desktop client slot occupants', () => {
     expect(appended[0]?.textContent).toContain("[data-dsh-preset-search]")
     expect(appended[0]?.textContent).toContain("[data-dsh-market-nav-icon] span[class*=\"navIcon\"]")
     expect(appended[0]?.textContent).toContain("[data-dsh-better-sidebar-settings-nav] span[class*=\"navIcon\"]")
+    // These are the named header containers in skills-manager 1.4.10 / archive-manager 1.3.6.
+    // Check rendered visibility, including controls outside the targeted headers.
+    const dom = new JSDOM(`<!doctype html><html><head></head><body>
+      <div class="dssm-title-row"><h2>Skills</h2><div class="dssm-feedback-links"><button>GitHub</button><button>Feedback</button></div></div>
+      <div class="dsham_settingsTitleRow"><h2>Archives</h2><div class="dsham_settingsLinks"><button>GitHub</button><button>Feedback</button></div></div>
+      <button id="refresh">Refresh skills</button><button id="archive">Archive session</button>
+      <div id="other-links" class="dssm-feedback-links">Other links</div>
+    </body></html>`)
+    const style = dom.window.document.createElement('style')
+    style.textContent = appended[0]?.textContent ?? ''
+    dom.window.document.head.appendChild(style)
+    for (const selector of ['.dssm-title-row > .dssm-feedback-links', '.dsham_settingsTitleRow > .dsham_settingsLinks']) {
+      const element = dom.window.document.querySelector(selector)
+      if (!element) throw new Error(`Missing header fixture: ${selector}`)
+      expect(dom.window.getComputedStyle(element).display).toBe('none')
+    }
+    for (const element of dom.window.document.querySelectorAll('h2, #refresh, #archive, #other-links')) {
+      expect(dom.window.getComputedStyle(element).display).not.toBe('none')
+    }
+    style.remove()
+    const links = dom.window.document.querySelector('.dssm-title-row > .dssm-feedback-links')
+    if (!links) throw new Error('Missing skills header')
+    expect(dom.window.getComputedStyle(links).display).not.toBe('none')
+    dom.window.close()
     disposeStyle?.()
     expect(removeStyle).toHaveBeenCalledOnce()
 

@@ -280,6 +280,11 @@ window.__ModuleLoader__.load({
         style.id = id
         style.textContent = `
           [data-dsh-sidebar-brand-identity] { display:none !important; }
+          /* Intranet Desktop: hide only the project/issue actions in these plugin headers.
+             Verified against skills-manager 1.4.10 and archive-manager 1.3.6;
+             keep the plugins' other links and controls available. */
+          .dssm-title-row > .dssm-feedback-links,
+          .dsham_settingsTitleRow > .dsham_settingsLinks { display:none !important; }
           /* Third-party plugins (dshmarket, dsh-better-sidebar) draw custom icons via ::before on settings nav rows,
              expecting direct > svg to hide the fallback gear. In 0.2.2-rc.1, navIcon wraps the fallback in a span,
              so ensure the fallback gear container is hidden when custom nav marker is present. */
