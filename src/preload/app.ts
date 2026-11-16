@@ -133,18 +133,6 @@ if (appDocument) {
   desktopBridge.getRepairDraft = sessionId => ipcRenderer.invoke(DESKTOP_IPC.repairDraftGet, sessionId) as Promise<{ text?: string; token?: string }>
   desktopBridge.acknowledgeRepairDraft = (sessionId, token) => ipcRenderer.invoke(DESKTOP_IPC.repairDraftAck, sessionId, token) as Promise<{ ok: boolean }>
 }
-if (appDocument && !isSafeModeRenderer(process.argv)) {
-  desktopBridge.openMobilePairing = () => ipcRenderer.invoke(DESKTOP_IPC.mobileOpen) as Promise<void>
-  desktopBridge.getMobileStatus = () => ipcRenderer.invoke(DESKTOP_IPC.mobileStatus) as Promise<{ connected?: boolean }>
-  desktopBridge.onMobileStatus = listener => {
-    const receive = (_event: IpcRendererEvent, status: unknown): void => {
-      if (typeof status !== 'object' || status === null || !('connected' in status)) return
-      listener({ connected: status.connected === true })
-    }
-    ipcRenderer.on(DESKTOP_IPC.mobileStatusChanged, receive)
-    return () => { ipcRenderer.removeListener(DESKTOP_IPC.mobileStatusChanged, receive) }
-  }
-}
 if (appDocument) {
   contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', {
     pick: (): Promise<string | null> => ipcRenderer.invoke(DESKTOP_IPC.directoryPick) as Promise<string | null>

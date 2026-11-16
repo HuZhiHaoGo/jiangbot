@@ -185,33 +185,14 @@ window.__ModuleLoader__.load({
       }
     }
 
-    const ENTERPRISE_NS = 'dsh-desktop-enterprise-entry'
-    function EnterpriseEntry({ t }) {
-      return React.createElement('a', {
-        href: 'https://dshdesktop.com/zh/enterprise/', target: '_blank', rel: 'noopener noreferrer',
-        'data-dsh-enterprise-entry': true
-      }, t('learnMore'), React.createElement('span', { 'aria-hidden': true }, ' ↗'))
-    }
-
     const REPAIR_NS = 'dsh-desktop-repair'
     function DesktopUtilityActions({ t, wide }) {
       const [busy, setBusy] = React.useState(false)
       // Internal messages are translated at render time; external diagnostics
       // remain verbatim instead of becoming a stale translated state string.
       const [error, setError] = React.useState(null)
-      const [connected, setConnected] = React.useState(false)
       const mounted = React.useRef(true)
-      React.useEffect(() => {
-        mounted.current = true
-        const bridge = window.dshDesktop
-        const unsubscribe = bridge?.onMobileStatus?.(status => {
-          if (mounted.current) setConnected(status.connected === true)
-        })
-        void bridge?.getMobileStatus?.().then(status => {
-          if (mounted.current) setConnected(status.connected === true)
-        }).catch(() => { if (mounted.current) setError({ key: 'phoneFailed' }) })
-        return () => { mounted.current = false; unsubscribe?.() }
-      }, [t])
+      React.useEffect(() => () => { mounted.current = false }, [])
       const bridge = window.dshDesktop
       if (!bridge) return null
       const open = async (operation) => {
@@ -245,11 +226,6 @@ window.__ModuleLoader__.load({
           'aria-label': t(busy ? 'opening' : 'open'), 'aria-description': t('description'), 'data-dsh-repair-entry': true,
           onClick: () => { void open(() => bridge.openRepairAgent()) }
         }, icon('repair'))),
-        typeof bridge.openMobilePairing === 'function' && (wide || connected) && React.createElement('button', {
-          type: 'button', disabled: busy, title: t(connected ? 'phoneManage' : 'phone'),
-          'aria-label': t(connected ? 'phoneManage' : 'phone'), 'data-dsh-mobile-entry': true,
-          onClick: () => { void open(() => bridge.openMobilePairing()) }
-        }, icon('phone'), connected && React.createElement('span', { 'data-connected': true, 'aria-hidden': true })),
         error && React.createElement('span', { role: 'alert', 'data-dsh-utility-error': true }, error.key ? t(error.key) : error.diagnostic))
     }
 
@@ -289,7 +265,7 @@ window.__ModuleLoader__.load({
       }))
       const bridge = window.dshDesktop
       if (typeof bridge?.getRepairDraft === 'function') ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'desktop-repair-draft' }, RepairDraft))
-      if (typeof bridge?.openRepairAgent === 'function' || typeof bridge?.openMobilePairing === 'function') ctx.slots.inject('sidebar.settings.action', () => ctx.slots.register({ name: 'sidebar.settings.action', id: 'desktop-utilities', locale: REPAIR_NS, inject: () => ({ t: ctx.locale.bind(REPAIR_NS) }) }, DesktopUtilityActions))
+      if (typeof bridge?.openRepairAgent === 'function') ctx.slots.inject('sidebar.settings.action', () => ctx.slots.register({ name: 'sidebar.settings.action', id: 'desktop-utilities', locale: REPAIR_NS, inject: () => ({ t: ctx.locale.bind(REPAIR_NS) }) }, DesktopUtilityActions))
     }
 
     const inject = ['locale', 'slots', 'remote.session', 'sessions', 'uiWorkspace']
@@ -297,18 +273,6 @@ window.__ModuleLoader__.load({
       applyRepair(ctx)
       ctx.effect(() => ctx.locale.register(ACTIONS_NS, actionMessages))
       const actionText = ctx.locale.bind(ACTIONS_NS)
-      ctx.effect(() => ctx.locale.register(ENTERPRISE_NS, {
-        zh: { learnMore: '了解企业版' }, en: { learnMore: 'Explore Enterprise' },
-        ja: { learnMore: 'エンタープライズ版について' }, es: { learnMore: 'Conocer la edición empresarial' },
-        fr: { learnMore: 'Découvrir la version entreprise' }, de: { learnMore: 'Enterprise-Version entdecken' },
-        ru: { learnMore: 'Корпоративная версия' }, pt: { learnMore: 'Conhecer a versão empresarial' }
-      }))
-      const enterpriseText = ctx.locale.bind(ENTERPRISE_NS)
-      ctx.slots.inject('settings.sidebar.footer', () => ctx.slots.register({
-        name: 'settings.sidebar.footer', id: 'desktop-enterprise-entry', locale: ENTERPRISE_NS,
-        inject: () => ({ t: enterpriseText })
-      }, EnterpriseEntry))
-
       ctx.effect(() => {
         const id = 'dsh-desktop-preset-toolbar-style'
         if (document.getElementById(id)) return

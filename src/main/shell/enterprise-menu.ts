@@ -86,9 +86,6 @@ export function externalUrlToOpen(url: string): string | undefined {
 export function buildDarwinDesktopMenu(options: {
   locale: string
   appName: string
-  openEnterprise: () => void
-  showAbout: () => void
-  checkForUpdates: () => void
   restart?: () => void
   restartSafeMode?: () => void
   showHarnessLog: () => void
@@ -103,9 +100,6 @@ export function buildDarwinDesktopMenu(options: {
     {
       label: options.appName,
       submenu: [
-        { label: aboutMenuLabel(options.locale), click: options.showAbout },
-        { label: updateMenuLabel(options.locale), accelerator: 'CmdOrCtrl+U', click: options.checkForUpdates },
-        { label: enterpriseMenuLabel(options.locale), click: options.openEnterprise },
         ...(options.restart === undefined
           ? []
           : [{ label: restartMenuLabel(options.locale), accelerator: 'CmdOrCtrl+Shift+R', click: options.restart }]),
@@ -158,11 +152,9 @@ export function buildDarwinDesktopMenu(options: {
  */
 export function buildWindowsApplicationMenu(options: {
   locale: string
-  connectPhone: () => void
   restart: () => void
   restartSafeMode?: () => void
   showHarnessLog: () => void
-  checkForUpdates: () => void
   quit: () => void
 }): DesktopMenuItem[] {
   const text = desktopMenuMessages(options.locale)
@@ -171,11 +163,6 @@ export function buildWindowsApplicationMenu(options: {
     {
       label: text.application,
       submenu: [
-        {
-          label: text.phone,
-          accelerator: 'CmdOrCtrl+Shift+M',
-          click: options.connectPhone
-        },
         {
           label: restartMenuLabel(options.locale),
           accelerator: 'CmdOrCtrl+Shift+R',
@@ -189,7 +176,6 @@ export function buildWindowsApplicationMenu(options: {
           click: options.showHarnessLog
         },
         { type: 'separator' },
-        { label: updateMenuLabel(options.locale), accelerator: 'CmdOrCtrl+U', click: options.checkForUpdates },
         { type: 'separator' },
         { role: 'quit', label: text.exit, click: options.quit }
       ]

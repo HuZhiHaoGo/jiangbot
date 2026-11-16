@@ -80,7 +80,6 @@ export function windowsMenuTemplate(
   }
 
   return [
-    command('connect-phone', text.phone, 'Ctrl+Shift+M'),
     command('restart-harness', text.restart, 'Ctrl+Shift+R'),
     command('safe-mode', text.safeMode),
     command('show-harness-log', text.log),
@@ -103,9 +102,6 @@ export function windowsMenuTemplate(
       ]
     },
     { type: 'separator' },
-    command('check-for-updates', text.update, 'Ctrl+U'),
-    command('about', text.about),
-    command('explore-enterprise', text.enterprise),
     { type: 'separator' },
     command('quit', text.exit)
   ]

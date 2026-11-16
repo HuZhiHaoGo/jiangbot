@@ -35,9 +35,6 @@ describe('enterprise entry', () => {
     const menu = buildDarwinDesktopMenu({
       locale,
       appName: 'DSH Desktop Shell',
-      openEnterprise,
-      showAbout,
-      checkForUpdates,
       restart,
       restartSafeMode,
       showHarnessLog,
@@ -47,34 +44,10 @@ describe('enterprise entry', () => {
       quit
     })
     const submenu = menu[0]?.submenu ?? []
-    expect(submenu[0]?.label).toBe(locale.startsWith('zh') ? '关于 DSH Desktop' : 'About DSH Desktop')
-    expect(submenu[1]?.label).toBe(locale.startsWith('zh') ? '检查更新…' : 'Check for Updates…')
-    expect(submenu[1]?.accelerator).toBe('CmdOrCtrl+U')
-    expect(submenu[2]?.label).toBe(locale.startsWith('zh') ? '了解企业版' : 'Explore Enterprise')
-    expect(submenu[3]?.label).toBe(locale.startsWith('zh') ? '重启' : 'Restart')
-    expect(submenu[3]?.accelerator).toBe('CmdOrCtrl+Shift+R')
-    expect(submenu[4]?.label).toBe(locale.startsWith('zh') ? '以安全模式重启…' : 'Restart as Safe Mode…')
-    expect(submenu[5]?.label).toBe(locale.startsWith('zh') ? '显示 Harness 日志' : 'Show Harness Log')
+    expect(submenu.map(item => item.label)).not.toEqual(expect.arrayContaining([aboutMenuLabel(locale), updateMenuLabel(locale), enterpriseMenuLabel(locale)]))
+    expect(submenu[0]?.label).toBe(locale.startsWith('zh') ? '重启' : 'Restart')
     submenu[0]?.click?.()
-    submenu[1]?.click?.()
-    submenu[2]?.click?.()
-    submenu[3]?.click?.()
-    submenu[4]?.click?.()
-    submenu[5]?.click?.()
-    expect(showAbout).toHaveBeenCalledOnce()
-    expect(checkForUpdates).toHaveBeenCalledOnce()
-    expect(openEnterprise).toHaveBeenCalledOnce()
     expect(restart).toHaveBeenCalledOnce()
-    expect(restartSafeMode).toHaveBeenCalledOnce()
-    expect(showHarnessLog).toHaveBeenCalledOnce()
-    submenu[7]?.click?.()
-    submenu[8]?.click?.()
-    submenu[9]?.click?.()
-    submenu[11]?.click?.()
-    expect(hide).toHaveBeenCalledOnce()
-    expect(hideOthers).toHaveBeenCalledOnce()
-    expect(unhideAll).toHaveBeenCalledOnce()
-    expect(quit).toHaveBeenCalledOnce()
     const standard = standardMenuLabels(locale)
     expect(menu.map(item => item.label)).toEqual(['DSH Desktop Shell', standard.edit, standard.window])
     expect(menu[1]?.submenu?.[0]).toMatchObject({ role: 'undo', label: standard.undo })
@@ -84,9 +57,6 @@ describe('enterprise entry', () => {
     const withoutSafeMode = buildDarwinDesktopMenu({
       locale,
       appName: 'DSH Desktop Shell',
-      openEnterprise,
-      showAbout,
-      checkForUpdates,
       restart,
       showHarnessLog,
       hide,
@@ -96,8 +66,8 @@ describe('enterprise entry', () => {
     })
     const safeModeOmitted = withoutSafeMode[0]?.submenu ?? []
     expect(safeModeOmitted.some(item => item.label === safeModeMenuLabel(locale))).toBe(false)
-    expect(safeModeOmitted[3]?.label).toBe(locale.startsWith('zh') ? '重启' : 'Restart')
-    expect(safeModeOmitted[4]?.label).toBe(locale.startsWith('zh') ? '显示 Harness 日志' : 'Show Harness Log')
+    expect(safeModeOmitted[0]?.label).toBe(locale.startsWith('zh') ? '重启' : 'Restart')
+    expect(safeModeOmitted[1]?.label).toBe(locale.startsWith('zh') ? '显示 Harness 日志' : 'Show Harness Log')
   })
 
   it('places the file menu after the application menu', () => {
@@ -117,27 +87,23 @@ describe('enterprise entry', () => {
     const calls: string[] = []
     const menu = buildWindowsApplicationMenu({
       locale: 'zh-CN',
-      connectPhone: () => { calls.push('phone') },
       restart: () => { calls.push('restart') },
       restartSafeMode: () => { calls.push('safe') },
       showHarnessLog: () => { calls.push('log') },
-      checkForUpdates: () => { calls.push('update') },
       quit: () => { calls.push('quit') }
     })
     const labels = menu.flatMap(item => [item.label, ...(item.submenu ?? []).map(child => child.label)])
-    expect(labels).toEqual(expect.arrayContaining(['应用', '连接手机…', '重启', '显示 Harness 日志', '编辑', '视图', '窗口']))
+    expect(labels).toEqual(expect.arrayContaining(['应用', '重启', '显示 Harness 日志', '编辑', '视图', '窗口']))
     const accelerators = menu.flatMap(item => (item.submenu ?? []).map(child => child.accelerator))
-    expect(accelerators).toEqual(expect.arrayContaining(['CmdOrCtrl+Shift+M', 'CmdOrCtrl+Shift+R', 'CmdOrCtrl+U']))
+    expect(accelerators).toEqual(expect.arrayContaining(['CmdOrCtrl+Shift+R']))
     const roles = menu.flatMap(item => (item.submenu ?? []).map(child => child.role))
     expect(roles).toEqual(expect.arrayContaining(['undo', 'copy', 'reload', 'zoomIn', 'togglefullscreen', 'quit']))
     menu[0]?.submenu?.[0]?.click?.()
-    expect(calls).toEqual(['phone'])
+    expect(calls).toEqual(['restart'])
     const withoutSafeMode = buildWindowsApplicationMenu({
       locale: 'en',
-      connectPhone: () => {},
       restart: () => {},
       showHarnessLog: () => {},
-      checkForUpdates: () => {},
       quit: () => {}
     })
     expect((withoutSafeMode[0]?.submenu ?? []).some(item => item.label === safeModeMenuLabel('en'))).toBe(false)
@@ -152,13 +118,13 @@ describe('enterprise entry', () => {
     expect(source.includes('menuLocale = resolved')).toBe(true)
     expect(source.includes('ENTERPRISE_URL')).toBe(true)
     expect(source.includes('externalUrlToOpen(')).toBe(true)
-    expect(source.includes('registerUpdateHandlers(')).toBe(true)
-    expect(source.includes('startUpdateManager(')).toBe(true)
-    expect(source.includes('if (app.isPackaged && !desktopDevelopmentBuild()) initializeDesktopUpdateService()')).toBe(true)
+    expect(source.includes('registerUpdateHandlers(')).toBe(false)
+    expect(source.includes('startUpdateManager(')).toBe(false)
+    expect(source.includes('if (app.isPackaged && !desktopDevelopmentBuild()) initializeDesktopUpdateService()')).toBe(false)
     expect(source.includes('initializeDesktopService(')).toBe(false)
     expect(source.includes('checkForUpdates(true)')).toBe(true)
     expect(source.includes('desktop:show-about')).toBe(true)
-    expect(source.includes('presentAbout(target, menuLocale)')).toBe(true)
+    expect(source.includes('presentAbout(target, menuLocale)')).toBe(false)
     expect(source.includes('locale: () => menuLocale')).toBe(true)
     expect(source.includes('desktop:ui-locale')).toBe(true)
     expect(source.includes('void restartDesktop()')).toBe(true)

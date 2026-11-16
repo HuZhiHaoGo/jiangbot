@@ -43,7 +43,7 @@ describe('Windows caption menus', () => {
   it('keeps every Desktop command in the application menu, including the View group', () => {
     const { run, actions } = record()
     clickAll(windowsMenuTemplate('application', 'zh', 1, actions))
-    const editing = new Set<DesktopMenuCommand>(['undo', 'redo', 'cut', 'copy', 'paste', 'select-all'])
+    const editing = new Set<DesktopMenuCommand>(['connect-phone', 'check-for-updates', 'about', 'explore-enterprise', 'undo', 'redo', 'cut', 'copy', 'paste', 'select-all'])
     expect(new Set(run)).toEqual(new Set(desktopMenuCommands.filter((command) => !editing.has(command))))
   })
 
@@ -68,8 +68,6 @@ describe('Windows caption menus', () => {
     expect(labels(windowsMenuTemplate('application', 'en', 0.9, actions))).toContain('Actual Size (now 90%)')
     const chinese = labels(windowsMenuTemplate('application', 'zh', 1, actions))
     const english = labels(windowsMenuTemplate('application', 'en', 1, actions))
-    expect(chinese.indexOf('了解企业版')).toBe(chinese.indexOf('关于 DSH Desktop') + 1)
-    expect(english.indexOf('Explore Enterprise')).toBe(english.indexOf('About DSH Desktop') + 1)
     expect(chinese).not.toContain('导出 Session 日志…')
     expect(labels(windowsMenuTemplate('application', 'en', 1, actions))).not.toContain('Export Session Log…')
     expect(labels(windowsMenuTemplate('edit', 'zh', 1, actions))).toEqual(

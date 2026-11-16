@@ -530,7 +530,6 @@ async function main(): Promise<void> {
   // User data is already selected. A locale relaunch returns above, so this
   // process does not create the service and then exit. Development packages
   // stay without an update service; only the official package asks the policy.
-  if (app.isPackaged && !desktopDevelopmentBuild()) initializeDesktopUpdateService()
   // Only the final GUI process starts shell discovery and the Host.
   const loginShellAbort = new AbortController()
   const loginShell = readDesktopLoginShellEnvironment(
@@ -543,7 +542,6 @@ async function main(): Promise<void> {
   let reportedLocale: string | undefined
   let menuLocale: HarnessLocale = 'en'
   let restartDesktop = async (): Promise<boolean> => false
-  registerUpdateHandlers({ locale: () => menuLocale })
   let shortcuts: DesktopShortcutController | undefined
   const dshHome = harnessHome()
   const safeMode = process.env.DSH_DESKTOP_SAFE_MODE === '1' || shouldStartInSafeMode(process.argv)
@@ -552,13 +550,11 @@ async function main(): Promise<void> {
     if (usesDesktopCaption(process.platform)) {
       const template = buildWindowsApplicationMenu({
         locale: menuLocale,
-        connectPhone: () => { void openMobilePairing().catch((error: unknown) => { console.error(error) }) },
         restart: () => { void restartDesktop() },
         ...(shouldStartInSafeMode(process.argv) || process.env.DSH_DESKTOP_SAFE_MODE === '1'
           ? {}
           : { restartSafeMode: () => { restartInSafeMode() } }),
         showHarnessLog: () => { shell.showItemInFolder(join(app.getPath('logs'), 'harness.log')) },
-        checkForUpdates: () => { void checkForUpdates(true).catch((error: unknown) => { console.error(error) }) },
         quit: () => { app.quit() }
       })
       Menu.setApplicationMenu(Menu.buildFromTemplate(template as MenuItemConstructorOptions[]))
@@ -569,17 +565,6 @@ async function main(): Promise<void> {
     const template = insertFileMenu(buildDarwinDesktopMenu({
       locale: menuLocale,
       appName: app.name,
-      openEnterprise: () => {
-        void shell.openExternal(ENTERPRISE_URL).catch((error: unknown) => { console.error(error) })
-      },
-      showAbout: () => {
-        const target = desktopWindow
-        if (target === undefined || target.isDestroyed()) return
-        void presentAbout(target, menuLocale).catch((error: unknown) => { console.error(error) })
-      },
-      checkForUpdates: () => {
-        void checkForUpdates(true).catch((error: unknown) => { console.error(error) })
-      },
       restart: () => { void restartDesktop() },
       ...(shouldStartInSafeMode(process.argv) || process.env.DSH_DESKTOP_SAFE_MODE === '1'
         ? {}
@@ -1029,29 +1014,8 @@ async function main(): Promise<void> {
       }
     })
   })
-  let mobileWindow: BrowserWindow | undefined
-  const mobileBridge = safeMode ? undefined : new LanMobileBridge({
-    harnessUrl: () => loopbackHarnessOrigin(hostUrl()),
-    harnessCookie: () => hostSessionCookie(hostCookie()),
-    locale: () => legacyLocale(menuLocale),
-    ...(iconPath === undefined ? {} : { appIconPath: iconPath }),
-    ...(brandLogos === undefined ? {} : { brandLogoPaths: brandLogos }),
-    cloudflaredCacheDir: join(app.getPath('userData'), 'bin'),
-    forceCloudflareFailure: process.env.DSH_TUNNEL_FORCE_PINGGY === '1',
-    tunnelLog: message => { console.warn(message) },
-    port: desktopMobilePort(app.isPackaged && !desktopDevelopmentBuild()),
-    onReconnectRequested: () => {
-      void openMobilePairing('reconnect').catch((error: unknown) => { console.error(error) })
-    },
-    onConnectedChange: connected => {
-      if (window.isDestroyed()) return
-      window.webContents.send(DESKTOP_IPC.mobileStatusChanged, { connected })
-    },
-    pairingPinStore: createFilePairingPinStore(pairingPinStorePath(app.getPath('userData')))
-  })
   stopRecoveredHost = async () => {
     await backend.stop()
-    await mobileBridge?.stop()
   }
   releaseRecoveredPage = async () => {
     desktopStorage.flushSync()
@@ -1062,32 +1026,6 @@ async function main(): Promise<void> {
       window.loadURL('about:blank').catch((error: unknown) => { console.error(error) }),
       new Promise<void>(resolve => { timer = setTimeout(resolve, 3000) })
     ]).finally(() => { if (timer !== undefined) clearTimeout(timer) })
-  }
-  async function openMobilePairing(reason: 'manual' | 'reconnect' = 'manual'): Promise<void> {
-    if (mobileBridge === undefined) return
-    const opened = await presentMobilePairing({
-      bridge: mobileBridge,
-      reason,
-      parent: window.isDestroyed() ? undefined : window,
-      ...(mobileWindow === undefined ? {} : { current: mobileWindow }),
-      locale: menuLocale,
-      ...(iconPath === undefined ? {} : { iconPath }),
-      hostReady: hostUrl() !== undefined
-    })
-    if (opened !== undefined && opened !== mobileWindow) {
-      opened.on('closed', () => { if (mobileWindow === opened) mobileWindow = undefined })
-    }
-    mobileWindow = opened
-  }
-  if (mobileBridge !== undefined) {
-    ipcMain.handle(DESKTOP_IPC.mobileOpen, event => {
-      assertMain(event)
-      return openMobilePairing()
-    })
-    ipcMain.handle(DESKTOP_IPC.mobileStatus, event => {
-      assertMain(event)
-      return { connected: mobileBridge.snapshot().connected }
-    })
   }
   const repairDrafts = new RepairDrafts()
   const repairSessions = new RepairSessionStore(join(app.getPath('userData'), 'recovery'))
@@ -1259,9 +1197,6 @@ async function main(): Promise<void> {
   async function runWindowsCaptionCommand(owner: BrowserWindow, command: DesktopMenuCommand): Promise<void> {
     const contents = owner.webContents
     switch (command) {
-      case 'connect-phone':
-        await openMobilePairing()
-        return
       case 'restart-harness':
         await restartDesktop()
         return
@@ -1270,9 +1205,6 @@ async function main(): Promise<void> {
         return
       case 'show-harness-log':
         shell.showItemInFolder(join(app.getPath('logs'), 'harness.log'))
-        return
-      case 'check-for-updates':
-        await checkForUpdates(true)
         return
       case 'reload':
         contents.reload()
@@ -1291,12 +1223,6 @@ async function main(): Promise<void> {
         return
       case 'toggle-fullscreen':
         owner.setFullScreen(!owner.isFullScreen())
-        return
-      case 'about':
-        await presentAbout(owner, menuLocale)
-        return
-      case 'explore-enterprise':
-        await shell.openExternal(ENTERPRISE_URL)
         return
       case 'quit':
         app.quit()
@@ -1358,34 +1284,6 @@ async function main(): Promise<void> {
   })
   app.on('second-instance', () => { showMainWindow() })
   app.on('activate', () => { showMainWindow() })
-  let hostReady = false
-  if (app.isPackaged) {
-    startUpdateManager({
-      canCheckAutomatically: () => hostReady && !quitting && !safeMode,
-      prepareToInstall: async () => {
-        quitting = true
-        await backend.stop()
-        const bundle = appBundlePathFromExecutable(process.execPath)
-        if (bundle === undefined) return
-        const result = await quarantineAppBundleLaunchAgents({
-          dshHome,
-          appBundlePath: bundle,
-          log: message => { console.info(message) }
-        })
-        if (result.failures.length > 0) {
-          throw new Error('Unable to stop background services before replacing DSH Desktop.')
-        }
-      },
-      installFailed: async () => {
-        quitting = false
-        await dialog.showMessageBox({
-          type: 'error',
-          message: desktopDailyText(menuLocale, 'appInstallFailed'),
-          buttons: [updateText(menuLocale, 'ok')]
-        })
-      }
-    })
-  }
   app.on('before-quit', event => {
     if (quitting) return
     event.preventDefault()
@@ -1400,18 +1298,13 @@ async function main(): Promise<void> {
       () => disposeFileDrag(),
       () => stopOperationReports(),
       () => operationJournal.drain(500),
-      () => mobileBridge?.stop(),
       () => backend.close()
     ]).finally(() => { app.quit() })
   })
   // The controller already queued this failure. Do not enqueue or report it again.
   if (!await continueAfterHostStartup(startup)) return
-  hostReady = true
   backendReady = true
   if (hostUrl() === undefined) throw new Error('Desktop Host is unavailable')
-  if (mobileBridge !== undefined) {
-    void mobileBridge.start().catch((error: unknown) => { console.error(error) })
-  }
   const opened = await loadDesktopPage(window, `${SCHEME}://app/`)
   if (!opened) {
     if (!quitting && !stability.blocksNavigation()) stability.processRecovery.start('window')
