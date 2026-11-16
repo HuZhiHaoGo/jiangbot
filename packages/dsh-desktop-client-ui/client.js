@@ -361,7 +361,8 @@ window.__ModuleLoader__.load({
             yield ctx.slots.register({ name: 'sidebar.brand.mark' }, DesktopBrandMark)
             yield ctx.slots.register({ name: 'sidebar.brand.name' }, DesktopBrandName)
             yield ctx.slots.register(
-              { name: 'conversation.hero.brand.mark' },
+              // Harness picks the smallest priority. Let brand plugins at the default priority override this mark.
+              { name: 'conversation.hero.brand.mark', priority: 100 },
               ConversationBrandMark
             )
           })

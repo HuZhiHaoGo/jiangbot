@@ -1,12 +1,20 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import vm from 'node:vm'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
 import { describe, expect, it, vi } from 'vitest'
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotMap {
+    root: { kind: 'single'; scope: 'root' }
+  }
+}
 
 const projectRoot = path.resolve(import.meta.dirname, '..')
 
 interface Registration {
-  config: { name: string; id?: string; order?: number }
+  config: { name: string; id?: string; order?: number; priority?: number }
   component: (props: Record<string, unknown>) => unknown
 }
 
@@ -124,10 +132,23 @@ describe('DSH Desktop client slot occupants', () => {
     expect(markPath.type).toBe('path')
     expect(markPath.props.fill).toBe('currentColor')
 
-    const heroMark = registrations.find(
-      ({ config }) => config.name === 'conversation.hero.brand.mark'
-    )!.component({ size: 48 }) as { type: unknown; props: Record<string, unknown> }
+    const heroSlot = 'conversation.hero.brand.mark'
+    const desktopHero = registrations.find(({ config }) => config.name === heroSlot)
+    if (!desktopHero) throw new Error('Expected the Desktop hero registration')
+    const heroMark = desktopHero.component({ size: 48 }) as { type: unknown; props: Record<string, unknown> }
     expect(heroMark.type).toBe(FishLogo)
     expect(heroMark.props.size).toBe(48)
+
+    const core = new SlotCore()
+    core.register({ name: 'root', children: { [heroSlot]: { kind: 'single', scope: 'root' } } },
+      ({ renderSlot }) => renderSlot(heroSlot, { size: 48 }))
+    const fallback = () => null
+    core.register({ name: heroSlot, priority: desktopHero.config.priority }, fallback)
+    expect(core.entriesOfSlot(heroSlot).map(entry => entry.component)).toEqual([fallback])
+    const custom = () => null
+    const removeCustom = core.register({ name: heroSlot }, custom)
+    expect(core.entriesOfSlot(heroSlot).map(entry => entry.component)).toEqual([custom])
+    removeCustom()
+    expect(core.entriesOfSlot(heroSlot).map(entry => entry.component)).toEqual([fallback])
   })
 })
