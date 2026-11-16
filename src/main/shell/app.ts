@@ -12,6 +12,7 @@ import { initializeDesktopUpdateService } from '../desktop-service'
 import { appBundlePathFromExecutable, quarantineAppBundleLaunchAgents } from '../desktop-service/launch-agent-audit'
 import { DESKTOP_SCHEME, installDesktopProtocol } from '../desktop-protocol'
 import { normalRelaunchArguments, relaunchArguments, shouldStartInSafeMode } from '../safe-mode'
+import { HIDE_SIDEBAR_MANAGEMENT_FLAG } from '../../shared/desktop-sidebar'
 import { RepairDrafts } from '../repair-drafts'
 import { RepairAgentService } from '../repair-agent'
 import { RepairSessionStore } from '../recovery/repair-agent-sessions'
@@ -123,6 +124,7 @@ interface DesktopPackageMetadata {
   name?: string
   productName?: string
   dshDesktopChannel?: string
+  dshDesktopHideSidebarManagement?: boolean
   build?: {
     productName?: string
     appId?: string
@@ -585,7 +587,11 @@ async function main(): Promise<void> {
   const importPage = packagedPagePath('web-import.html')
   const splashPage = packagedPagePath('splash.html')
   let mainWindow: BrowserWindow | undefined
-  const window = createWindow(preload, importPage, splashPage, safeMode ? [SAFE_MODE_RENDERER_FLAG] : [])
+  const rendererArguments = safeMode ? [SAFE_MODE_RENDERER_FLAG] : []
+  if (process.platform === 'win32' && app.isPackaged && readDesktopPackageMetadata().dshDesktopHideSidebarManagement === true) {
+    rendererArguments.push(HIDE_SIDEBAR_MANAGEMENT_FLAG)
+  }
+  const window = createWindow(preload, importPage, splashPage, rendererArguments)
   desktopWindow = window
   let stopRecoveredHost = async (): Promise<void> => {}
   let releaseRecoveredPage = async (): Promise<void> => {}

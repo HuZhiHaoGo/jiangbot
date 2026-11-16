@@ -163,7 +163,7 @@ function sidebarSwitcher({ pinned = [], active = null, title = '工作台', work
     showMarket: vi.fn(), open: vi.fn(), openNative: vi.fn(), run: vi.fn()
   }
   let activePanelId = null
-  const render = () => { stateIndex = 0; return renderSidebar({ service, wide: true, startSession: vi.fn(), usePanelInfo: selector => selector({ activePanelId }) }) }
+  const render = (wide = true) => { stateIndex = 0; return renderSidebar({ service, wide, startSession: vi.fn(), usePanelInfo: selector => selector({ activePanelId }) }) }
   const find = (node, predicate) => {
     if (Array.isArray(node)) return node.flatMap(item => find(item, predicate))
     if (!node || typeof node !== 'object') return []
@@ -2423,6 +2423,20 @@ describe('workbench market screenshot and metadata display', () => {
     expect(fullSource).not.toContain("name: 'chevronDown', size: 11")
   })
 
+  it('shows no workbench entry in release mode and allows returning from a restored workbench', () => {
+    const idle = sidebarSwitcher()
+    idle.window.dshDesktop = { hideSidebarManagement: true }
+    expect(idle.render()).toBeNull()
+
+    const restored = sidebarSwitcher({ pinned: ['writer'], active: 'writer' })
+    restored.window.dshDesktop = { hideSidebarManagement: true }
+    const back = restored.render()
+    expect(back.type).toBe('button')
+    expect(back.props['aria-label']).toBe('会话')
+    back.props.onClick()
+    expect(restored.service.openNative).toHaveBeenCalledExactlyOnceWith(expect.any(Function))
+  })
+
   it('opens the Workbench homepage from its fixed hot area and switches by clicking the name or icon', () => {
     const ui = sidebarSwitcher({ pinned: ['writer'], active: 'writer', title: '投标作战室' })
     let tree = ui.render()
@@ -2523,7 +2537,9 @@ describe('workbench market screenshot and metadata display', () => {
     expect(fullSource).not.toContain('WORKBENCH_DOCK_PREF')
     expect(fullSource).not.toContain('workbenchDockPreference')
     expect(fullSource).not.toContain('显示工作台快捷栏')
-    expect(fullSource).toContain('if (!enabled || !wide) return null')
+    const sidebar = sidebarSwitcher()
+    expect(sidebar.render(false)).toBeNull()
+    expect(sidebar.render()).not.toBeNull()
     expect(fullSource).toContain("h(Switch, { checked: enabled, onChange: (next) => service.setEnabled(next), label: tr('启用工作台功能') })")
     expect(fullSource).toContain('if (!workbenchEnabled) return conversation')
   })

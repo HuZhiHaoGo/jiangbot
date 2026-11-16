@@ -6,7 +6,7 @@ const flatten = node => !node || typeof node !== 'object' ? [] : Array.isArray(n
   ? node.flatMap(flatten) : [node, ...flatten(node.props?.children)]
 const evaluate = node => typeof node.type === 'function' ? node.type(node.props) : node
 
-async function sidebar({ collapsed = false, panels = [], unpinned = [], contribution } = {}) {
+async function sidebar({ collapsed = false, panels = [], unpinned = [], contribution, hideSidebarManagement = false } = {}) {
   let plugin
   let registration
   let Root
@@ -24,8 +24,8 @@ async function sidebar({ collapsed = false, panels = [], unpinned = [], contribu
     '@deepseek-ai/dsh-client-ui-slots': { resolveSlotLabel: label => label },
     '@deepseek-ai/dsh-client-ui-primitives': primitives
   }
-  const sandbox = { window: { __ModuleLoader__: { load({ factory }) { plugin = factory(id => dependencies[id]) } } } }
-  // Capture the public slot registration from the actual unchanged factory.
+  const sandbox = { window: { dshDesktop: { hideSidebarManagement }, __ModuleLoader__: { load({ factory }) { plugin = factory(id => dependencies[id]) } } } }
+  // Capture the public slot registration from the installed factory.
   vm.runInNewContext(await readFile(new URL('../node_modules/@deepseek-ai/dsh-client-ui-sidebar/lib/client.js', import.meta.url), 'utf8'), sandbox)
   sandbox.document = { documentElement: { hasAttribute: () => false } }
   const startSession = vi.fn()
@@ -60,6 +60,17 @@ async function sidebar({ collapsed = false, panels = [], unpinned = [], contribu
 const panels = [{ id: 'plugins', label: 'Plugins', order: 0 }, { id: 'schedules', label: 'Schedules', order: 1 }, { id: 'custom', label: 'Custom', order: 2 }]
 
 describe('sidebar primary navigation public slot', () => {
+  it.each([false, true])('hides only the Plugins row in the Windows release (collapsed=%s)', async collapsed => {
+    const shell = await sidebar({ collapsed, panels, hideSidebarManagement: true })
+    const tree = flatten(shell.render())
+    expect(tree.filter(node => node.type?.name === 'PanelRow').map(node => node.props.id)).toEqual(['schedules', 'custom'])
+    const menu = evaluate(tree.find(node => node.type?.name === 'PanelMoreMenu'))
+    expect(menu.props.anchor.props.children.props['aria-label']).toBe('panels.more')
+    expect(menu.props.children.props.name).toBe('sidebar.panellist.actions')
+    menu.props.children.props.owner.onOpen('custom')
+    expect(shell.selectPanel).toHaveBeenCalledExactlyOnceWith('custom')
+  })
+
   it('keeps native pinned rows and More callbacks when no contribution is registered', async () => {
     const shell = await sidebar({ panels, unpinned: ['plugins', 'custom'] })
     const tree = shell.render()
@@ -117,5 +128,53 @@ describe('sidebar primary navigation public slot', () => {
     expect(flatten(empty.render()).filter(node => node.type === 'nav')).toHaveLength(0)
     const custom = await sidebar({ contribution: () => ({ type: 'custom-navigation', props: {} }) })
     expect(flatten(custom.render()).filter(node => node.type === 'custom-navigation')).toHaveLength(1)
+  })
+})
+
+describe('sidebar More entries', () => {
+  it.each([false, true])('limits only the sidebar plugin actions when hideSidebarManagement=%s', async hideSidebarManagement => {
+    let plugin
+    const registrations = new Map()
+    const jsx = (type, props, key) => ({ type, props, key })
+    const dependencies = {
+      '@deepseek-ai/dsh-client-store': { createSnapshotStore: () => ({ set() {} }) },
+      'react/jsx-runtime': { jsx, jsxs: jsx },
+      '@deepseek-ai/dsh-client-ui-primitives': { MenuItemButton: 'menuitem' }
+    }
+    const sandbox = { window: { dshDesktop: { hideSidebarManagement }, __ModuleLoader__: { load({ factory }) { plugin = factory(id => dependencies[id]) } } } }
+    vm.runInNewContext(await readFile(new URL('../node_modules/@deepseek-ai/dsh-client-ui-entry-customization/lib/client.js', import.meta.url), 'utf8'), sandbox)
+    const openList = vi.fn()
+    const startSession = vi.fn()
+    const onDismiss = vi.fn()
+    const tokenUsage = vi.fn()
+    const t = key => key
+    const sidebarActions = 'sidebar.panellist.actions'
+    registrations.set(sidebarActions, [() => jsx('menuitem', { children: 'Token usage', onSelect: tokenUsage })])
+    plugin.apply({
+      effect() {}, inject() {},
+      locale: { bind: () => t }, get: key => key === 'pluginNavigation' ? { openList } : undefined,
+      uiWorkspace: { startSession },
+      slots: {
+        inject: (_name, callback) => callback(),
+        register: (options, render) => {
+          const entries = registrations.get(options.name) ?? []
+          entries.push(() => render({ ...options.inject(), entries: [], t, usePluginNavigation: select => select(true), onDismiss }))
+          registrations.set(options.name, entries)
+        }
+      }
+    })
+    const buttons = name => flatten(registrations.get(name).map(render => render())).filter(node => node.type === 'menuitem')
+    const sidebar = buttons(sidebarActions)
+    expect(sidebar.map(item => item.props.children)).toEqual(hideSidebarManagement ? ['Token usage'] : ['Token usage', 'install', 'create'])
+    sidebar[0].props.onSelect()
+    expect(tokenUsage).toHaveBeenCalledOnce()
+    if (!hideSidebarManagement) {
+      sidebar[1].props.onSelect()
+      sidebar[2].props.onSelect()
+      expect(openList).toHaveBeenCalledOnce()
+      expect(startSession).toHaveBeenCalledWith(undefined, expect.objectContaining({ prompt: 'createPrompt.sidebar' }))
+    }
+    expect(buttons('conversation.session.header.views.actions').map(item => item.props.children)).toEqual(['install', 'create'])
+    expect(buttons('sidebar.right.tab.guide.actions').map(item => item.props.children)).toEqual(['install', 'create'])
   })
 })

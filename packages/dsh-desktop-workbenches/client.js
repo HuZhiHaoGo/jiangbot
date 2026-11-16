@@ -2282,8 +2282,15 @@ Start by asking for the first piece of information still missing.`,
       }, [open, enabled, wide])
       const draggingIdRef = React.useRef(null)
       const dropTargetRef = React.useRef(null)
-      if (!enabled || !wide) return null
+      if (!enabled) return null
       const disabled = !ready || pending > 0 || service.blocked
+      if (window.dshDesktop?.hideSidebarManagement === true) {
+        // A previously opened workbench can be restored on launch. Keep a way back to sessions.
+        if (!state.active && !marketSelected) return null
+        return h('button', { type: 'button', className: 'dshWb dshWbWorkbenchHome', disabled, 'aria-label': tr('会话'), onClick: () => service.run(service.openNative(startSession)) },
+          h(MarketIcon, { name: 'home', size: 16 }), wide && h('span', null, tr('会话')))
+      }
+      if (!wide) return null
       const pinned = state.pinned.map((id) => catalog.find((item) => item.id === id)).filter((item) => item && item.installed !== false && state.added.includes(item.id) && service.catalog.has(item.id) && service.activationFor(item) !== 'off').map(displayEntry)
       const active = state.active && pinned.find((item) => item.id === state.active)
       const chooseNative = () => {
