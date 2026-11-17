@@ -46,12 +46,23 @@ describe('Windows release settings navigation', () => {
     expect(panel.renderSlot).toHaveBeenCalledWith('settings.section', expect.anything(), { only: 'models' })
   })
 
+  it('allows opening Models from the release settings navigation', () => {
+    const options = { hiddenSettingsSections: RELEASE_HIDDEN_SETTINGS_SECTIONS }
+    const panel = openPanel({ ...options, activeId: 'general' })
+    expect(panel.labels).toEqual(['通用设置', '模型', 'Token 用量'])
+    panel.buttons[1].props.onClick()
+    expect(panel.onSelect).toHaveBeenCalledExactlyOnceWith('models')
+    const modelPanel = openPanel({ ...options, activeId: 'models' })
+    expect(modelPanel.buttons[1].props['aria-current']).toBe('true')
+    expect(modelPanel.renderSlot).toHaveBeenCalledWith('settings.section', expect.anything(), { only: 'models' })
+  })
+
   it.each(RELEASE_HIDDEN_SETTINGS_SECTIONS)('falls back to the first visible section when opening %s', activeId => {
     const panel = openPanel({ hiddenSettingsSections: RELEASE_HIDDEN_SETTINGS_SECTIONS, activeId })
-    expect(panel.labels).toEqual(['通用设置', 'Token 用量'])
+    expect(panel.labels).toEqual(['通用设置', '模型', 'Token 用量'])
     expect(panel.buttons[0].props['aria-current']).toBe('true')
     expect(panel.renderSlot).toHaveBeenCalledWith('settings.section', expect.anything(), { only: 'general' })
-    panel.buttons[1].props.onClick()
+    panel.buttons[2].props.onClick()
     expect(panel.onSelect).toHaveBeenCalledExactlyOnceWith('token-usage')
   })
 
