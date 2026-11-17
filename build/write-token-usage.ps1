@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $connection = $null
 $command = $null
 $exitCode = 0
+$stage = 'input'
 
 function Add-Parameter($name, [System.Data.SqlDbType]$type, $value, [int]$size = 0) {
   $parameter = if ($size -gt 0) {
@@ -35,6 +36,7 @@ try {
   }
 
   $login = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+  $stage = 'identity'
   $employee = ($login -split '\\')[-1]
   if ($rows.Count -lt 1 -or $rows.Count -gt 20 -or $login.Length -gt 128) {
     throw 'Invalid usage batch'
@@ -43,21 +45,23 @@ try {
     if ($employee -ine $row.employeeNo) { throw 'Windows identity mismatch' }
   }
 
+  $stage = 'configuration'
   $builder = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
-  $builder.DataSource = $settings.server
-  $builder.InitialCatalog = 'hbcshdb'
-  $builder.ConnectTimeout = 3
-  $builder.ConnectRetryCount = 0
-  $builder.Encrypt = $true
-  $builder.TrustServerCertificate = $false
-  $builder.Pooling = $false
-  $builder.ApplicationName = 'Jiangbot Token Usage'
+  $builder['Data Source'] = $settings.server
+  $builder['Initial Catalog'] = 'hbcshdb'
+  $builder['Connect Timeout'] = 30
+  $builder['Encrypt'] = $true
+  $builder['TrustServerCertificate'] = $true
+  $builder['Pooling'] = $false
+  $builder['Application Name'] = 'Jiangbot Token Usage'
   $password = ConvertTo-SecureString $settings.password -AsPlainText -Force
   $password.MakeReadOnly()
   $credential = New-Object System.Data.SqlClient.SqlCredential($settings.user, $password)
   $connection = New-Object System.Data.SqlClient.SqlConnection($builder.ConnectionString, $credential)
+  $stage = 'connection'
   $connection.Open()
 
+  $stage = 'insert'
   $command = $connection.CreateCommand()
   $command.CommandTimeout = 5
   $command.CommandText = @'
@@ -88,7 +92,7 @@ INSERT INTO [dbo].[ModelTokenUsage] (
     Add-Parameter '@TotalTokens' BigInt $row.totalTokens
     try {
       [void]$command.ExecuteNonQuery()
-    } catch [System.Data.SqlClient.SqlException] {
+    } catch {
       # A previously committed EventId is a successful retry.
       $errorInfo = Find-SqlError $_.Exception
       if ($null -eq $errorInfo -or $errorInfo.Number -notin @(2601, 2627) -or
@@ -96,12 +100,21 @@ INSERT INTO [dbo].[ModelTokenUsage] (
     }
   }
 } catch [System.Data.SqlClient.SqlException] {
-  # Return a classification only. SQL errors can contain connection details.
   $sqlError = Find-SqlError $_.Exception
+  $number = if ($null -ne $sqlError) { $sqlError.Number } else { 0 }
+  [Console]::Error.WriteLine("stage=$stage sql=$number")
   $exitCode = if ($null -ne $sqlError -and
       $sqlError.Number -in @(-2, 2, 20, 53, 64, 121, 233, 1205, 10053, 10054, 10060, 11001)) { 2 } else { 1 }
 } catch {
-  $exitCode = 1
+  $sqlError = Find-SqlError $_.Exception
+  if ($null -ne $sqlError) {
+    [Console]::Error.WriteLine("stage=$stage sql=$($sqlError.Number)")
+    if ($sqlError.Number -in @(-2, 2, 20, 53, 64, 121, 233, 1205, 10053, 10054, 10060, 11001)) { $exitCode = 2 }
+    else { $exitCode = 1 }
+  } else {
+    [Console]::Error.WriteLine("stage=$stage error=unexpected")
+    $exitCode = 1
+  }
 } finally {
   if ($null -ne $command) { $command.Dispose() }
   if ($null -ne $connection) { $connection.Dispose() }

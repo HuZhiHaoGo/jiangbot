@@ -891,7 +891,7 @@ async function main(): Promise<void> {
     }
   })
   const tokenReporter = app.isPackaged && !safeMode && readDesktopPackageMetadata().dshDesktopPackagedSqlUsage === true
-    ? createPackagedTokenReporter(process.resourcesPath) : undefined
+    ? createPackagedTokenReporter(process.resourcesPath, app.getPath('logs')) : undefined
   if (tokenReporter !== undefined) app.once('will-quit', () => tokenReporter.dispose())
   backend = new DesktopBackendController(onFailure => {
     const host = new DesktopHostProcess({

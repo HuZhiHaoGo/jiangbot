@@ -1,7 +1,8 @@
 import { createRequire } from 'node:module'
+import { spawnSync } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { tmpdir, userInfo } from 'node:os'
+import { join, resolve } from 'node:path'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { describe, expect, it, vi } from 'vitest'
@@ -90,5 +91,47 @@ describe('built-in SQL usage reporting', () => {
     } finally {
       await rm(root, { recursive: true, force: true })
     }
+  })
+
+  it.skipIf(process.platform !== 'win32')('runs the writer in Windows PowerShell and reports a safe failure', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'token-usage-writer-'))
+    try {
+      const config = join(root, 'config.json')
+      const fakePassword = 'fixture-password-only'
+      await writeFile(config, JSON.stringify({ server: 'tcp:127.0.0.1,1', user: 'fixture-user', password: fakePassword }))
+      const row = {
+        ...report, employeeNo: userInfo().username, eventId: 'f5fced6a-0dac-4858-bdb6-f8b6902248c7',
+        usedAtUtc: new Date(report.usedAt).toISOString(), totalTokens: tokenTotal(report)
+      }
+      const result = spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), [
+        '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-File', resolve('build/write-token-usage.ps1'), '-ConfigPath', config
+      ], { input: JSON.stringify([row]), encoding: 'utf8', timeout: 40_000, windowsHide: true })
+      expect(result.status).not.toBe(0)
+      // Windows AppContainer can reject SqlConnection construction before any network access.
+      expect(result.stderr).toMatch(/stage=(?:connection sql=-?\d+|configuration error=unexpected)/)
+      expect(result.stderr).not.toContain(fakePassword)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 45_000)
+
+  it.skipIf(process.platform !== 'win32')('builds the SQL connection settings with Windows PowerShell', async () => {
+    const script = await readFile(resolve('build/write-token-usage.ps1'), 'utf8')
+    const start = script.indexOf('  $builder = New-Object')
+    const end = script.indexOf('  $password = ConvertTo-SecureString', start)
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const powershell = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    const code = `$ErrorActionPreference = 'Stop'
+$settings = @{ server = 'test-server' }
+${script.slice(start, end)}
+if ($builder['Data Source'] -ne 'test-server' -or $builder['Connect Timeout'] -ne 30 -or
+    -not $builder['Encrypt'] -or -not $builder['TrustServerCertificate']) { exit 1 }`
+    const result = spawnSync(powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', code], {
+      encoding: 'utf8', timeout: 10_000, windowsHide: true
+    })
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
   })
 })

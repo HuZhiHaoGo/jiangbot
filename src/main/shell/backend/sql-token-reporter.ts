@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
+import { appendFile, mkdir } from 'node:fs/promises'
 import { userInfo } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -71,14 +72,27 @@ export function createTokenUsageQueue(employeeNo: string, write: WriteBatch, war
   }
 }
 
-export function createPackagedTokenReporter(resources: string): ReturnType<typeof createTokenUsageQueue> | undefined {
+export function createPackagedTokenReporter(resources: string, logs: string): ReturnType<typeof createTokenUsageQueue> | undefined {
+  const warn = (message: string): void => {
+    console.warn(message)
+    void mkdir(logs, { recursive: true })
+      .then(() => appendFile(join(logs, 'token-usage-sql.log'), `${new Date().toISOString()} ${message}\n`, 'utf8'))
+      .catch(() => console.warn('[token-usage] Unable to write SQL reporting log'))
+  }
   const root = process.env.SystemRoot
-  if (process.platform !== 'win32' || !root) return
+  if (process.platform !== 'win32') return
+  if (!root) {
+    warn('[token-usage] SQL reporting disabled: Windows system directory unavailable')
+    return
+  }
   const config = join(resources, 'token-usage-sql.json')
   const script = join(resources, 'write-token-usage.ps1')
-  if (!existsSync(config)) return
+  if (!existsSync(config)) {
+    warn('[token-usage] SQL reporting disabled: missing packaged configuration')
+    return
+  }
   if (!existsSync(script)) {
-    console.warn('[token-usage] SQL reporting disabled: missing packaged writer')
+    warn('[token-usage] SQL reporting disabled: missing packaged writer')
     return
   }
   let employeeNo: string
@@ -86,7 +100,7 @@ export function createPackagedTokenReporter(resources: string): ReturnType<typeo
     employeeNo = userInfo().username
     if (!employeeNo || employeeNo.length > 64) throw new Error('Invalid account')
   } catch {
-    console.warn('[token-usage] SQL reporting disabled: Windows account unavailable')
+    warn('[token-usage] SQL reporting disabled: Windows account unavailable')
     return
   }
   const executable = join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
@@ -94,13 +108,17 @@ export function createPackagedTokenReporter(resources: string): ReturnType<typeo
     const child = execFile(executable, [
       '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'RemoteSigned',
       '-File', script, '-ConfigPath', config
-    ], { signal, timeout: 8_000, windowsHide: true, maxBuffer: 8_192 }, error => {
+    ], { signal, timeout: 45_000, windowsHide: true, maxBuffer: 8_192 }, (error, _stdout, stderr) => {
       if (!error) resolve('ok')
-      else if (error.killed || error.code === 2) resolve('retry')
-      else resolve('failed')
+      else {
+        const diagnostic = /^(stage=(?:input|identity|configuration|connection|insert) (?:sql=-?\d+|error=unexpected))\s*$/u.exec(stderr.trim())?.[1]
+        if (!signal.aborted) warn(`[token-usage] SQL writer failed: ${diagnostic ?? (error.killed ? 'process timed out' : 'process could not complete')}`)
+        if (error.killed || error.code === 2) resolve('retry')
+        else resolve('failed')
+      }
     })
     // execFile reports a failed spawn or early exit through its callback.
     child.stdin?.on('error', () => {})
     child.stdin?.end(JSON.stringify(rows))
-  }))
+  }), warn)
 }
