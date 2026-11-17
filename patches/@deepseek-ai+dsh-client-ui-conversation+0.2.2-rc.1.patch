@@ -1,7 +1,16 @@
 diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js b/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
 --- a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
 +++ b/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
-@@ -20453,7 +20453,7 @@
+@@ -20437,7 +20437,7 @@
+ 				className: HeroShell_module_css_default.root,
+ 				children: [(0, react_jsx_runtime.jsxs)("div", {
+ 					className: HeroShell_module_css_default.stack,
+-					children: [(0, react_jsx_runtime.jsxs)("div", {
++					children: [renderSlot("conversation.hero.brand.content", {}, { fallback: (0, react_jsx_runtime.jsxs)("div", {
+ 						className: HeroShell_module_css_default.headline,
+ 						children: [(0, react_jsx_runtime.jsx)("span", {
+ 							className: HeroShell_module_css_default.fishHitbox,
+@@ -20453,12 +20453,12 @@
  							}, { fallback: (0, react_jsx_runtime.jsx)(HeroFish, { hovering }) })
  						}), (0, react_jsx_runtime.jsxs)("span", {
  							className: HeroShell_module_css_default.titleGroup,
@@ -10,6 +19,12 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js 
  								className: HeroShell_module_css_default.previewBadge,
  								children: t("hero.preview")
  							})]
+ 						})]
+-					}), (0, react_jsx_runtime.jsx)("div", { className: HeroShell_module_css_default.body })]
++					}) }), (0, react_jsx_runtime.jsx)("div", { className: HeroShell_module_css_default.body })]
+ 				}), children]
+ 			});
+ 		}
 @@ -20556,6 +20556,7 @@
  			const inert = sessionId === void 0 || hero && chipTitle === void 0;
  			const inputBar = renderSlot("conversation.composer.bar", {
@@ -154,15 +169,16 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js 
  			const bindings = /* @__PURE__ */ new Set();
  			const trackedBindings = /* @__PURE__ */ new WeakSet();
  			const trackBinding = (binding) => {
-@@ -22817,6 +22834,7 @@
+@@ -22817,6 +22834,8 @@
  						kind: "list",
  						scope: "session"
  					},
++					"conversation.hero.brand.content": { kind: "single", scope: "root" },
 +					"conversation.hero.brand.title": { kind: "single", scope: "root" },
  					"conversation.hero.brand.mark": {
  						kind: "single",
  						scope: "root"
-@@ -22832,6 +22850,10 @@
+@@ -22832,6 +22851,10 @@
  					"conversation.hero.options": {
  						kind: "list",
  						scope: "session"
@@ -173,7 +189,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js 
  					}
  				},
  				slots: {
-@@ -22945,6 +22967,7 @@
+@@ -22945,6 +22968,7 @@
  						entryPins: viewPins.unpinned,
  						entryActions: viewActions
  					},
@@ -181,7 +197,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js 
  					setPinned: viewPins.setPinned,
  					open: (id) => {
  						workspaceNavigation.openSession(id);
-@@ -22967,6 +22990,10 @@
+@@ -22967,6 +22991,10 @@
  						kind: "list",
  						scope: "session"
  					},
@@ -192,7 +208,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js 
  					"conversation.input.permission": {
  						kind: "single",
  						scope: "session"
-@@ -23003,6 +23030,7 @@
+@@ -23003,6 +23031,7 @@
  						removeAttachment: void 0,
  						resolveDraftAttachments: void 0,
  						retryFileUpload: void 0,
@@ -200,7 +216,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js 
  						toggleCommandMenu: void 0,
  						stop: void 0,
  						hooks: {
-@@ -23071,6 +23099,11 @@
+@@ -23071,6 +23100,11 @@
  						retryFileUpload: (id) => {
  							if (sessions.binding(sessionId) !== void 0) conversation.retryFileUpload(sessionId, id);
  						},
@@ -212,7 +228,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js 
  						toggleCommandMenu: inputTriggers === void 0 ? void 0 : (selection) => {
  							shell.dismissPopup();
  							const snapshot = shell.snapshot;
-@@ -23103,10 +23136,7 @@
+@@ -23103,10 +23137,7 @@
  				yield slots.register({
  					name: "main",
  					key: "conversation",
@@ -249,16 +265,18 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/types/clie
          /** Conversation shell beneath its root-scoped main-panel entry. */
          'main.conversation': {
              kind: 'single';
-@@ -306,6 +314,8 @@
+@@ -306,6 +314,10 @@
              scope: 'root';
              owner: EmptyWorkspaceOwnerProps;
          };
++        /** Optional full branding block. The owner retains the mark and title slots as fallback. */
++        'conversation.hero.brand.content': { kind: 'single'; scope: 'root' };
 +        /** Optional product headline. The owner preserves its localized default when empty. */
 +        'conversation.hero.brand.title': { kind: 'single'; scope: 'root' };
          /** Brand mark shown before the blank-session headline. */
          'conversation.hero.brand.mark': {
              kind: 'single';
-@@ -318,6 +328,12 @@
+@@ -318,6 +330,12 @@
              scope: 'session-maybe';
              owner: HeroAgentPresetOwnerProps;
          };
@@ -271,7 +289,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/types/clie
          /** Compact options right-aligned in the New Session row after the workspace and preset controls; rendered only with a Session. */
          'conversation.hero.options': {
              kind: 'list';
-@@ -340,6 +356,12 @@
+@@ -340,6 +358,12 @@
              kind: 'list';
              scope: 'session';
          };
@@ -284,7 +302,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/types/clie
          /**
           * Ambient entries below the composer card; fixed overlays must portal to the document body
           * because the docked composer contains them.
-@@ -347,6 +369,7 @@
+@@ -347,6 +371,7 @@
          'conversation.composer.dock': {
              kind: 'list';
              scope: 'session';
@@ -292,15 +310,16 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/types/clie
          };
          /**
           * Compact controls at the left of the composer tool row; fixed overlays must portal to the
-@@ -444,6 +467,7 @@
+@@ -444,6 +469,8 @@
                      kind: 'list';
                      scope: 'session';
                  };
++                'conversation.hero.brand.content': { kind: 'single'; scope: 'root' };
 +                'conversation.hero.brand.title': { kind: 'single'; scope: 'root' };
                  'conversation.hero.brand.mark': {
                      kind: 'single';
                      scope: 'root';
-@@ -603,6 +627,8 @@
+@@ -603,6 +630,8 @@
          /** Whether `conversation.session.header.views.actions` has registrations. */
          readonly entryActions: ObservableSnapshot<boolean>;
      };
@@ -309,7 +328,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/types/clie
      /**
       * Pin or unpin one View tab in every Session; Chat is ignored.
       * @param id - View id.
-@@ -629,8 +655,10 @@
+@@ -629,8 +658,10 @@
      /** Open the Workspace picker from the inert composer surface. */
      onRequestWorkspace?: () => void;
      placeholder?: string;
@@ -321,7 +340,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/types/clie
  }
  /** Package-private operations injected into the resident composer bar. */
  export interface ComposerBarInjected {
-@@ -647,6 +675,7 @@
+@@ -647,6 +678,7 @@
      resolveDraftAttachments: ((ids: readonly DraftAttachmentId[]) => readonly ComposerAttachment[]) | undefined;
      /** Restart one failed file upload; absent without a session. */
      retryFileUpload: ((id: DraftAttachmentId) => void) | undefined;
@@ -329,7 +348,7 @@ diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/types/clie
      toggleCommandMenu: ((selection: EditSelection) => void) | undefined;
      stop: (() => void) | undefined;
      hooks: {
-@@ -675,7 +704,7 @@
+@@ -675,7 +707,7 @@
      onActiveChange: (active: boolean) => void;
  }
  /** Full props of the resident composer bar. */

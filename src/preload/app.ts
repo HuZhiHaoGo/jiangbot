@@ -12,6 +12,7 @@ import { setupDesktopStoragePersistence } from './desktop-storage'
 import { createSidebarBrowserBridge } from './sidebar-browser'
 import { usesDesktopCaption } from '../shared/desktop-menu'
 import { HIDE_SIDEBAR_MANAGEMENT_FLAG, RELEASE_HIDDEN_SETTINGS_SECTIONS } from '../shared/desktop-sidebar'
+import { safeHeroBrandFromArguments, type SafeHeroBrand } from '../shared/safe-hero-brand'
 import { markDesktopPlatform } from './desktop-platform'
 import { mountDesktopUpdateUi } from './desktop-update-ui'
 import { markWindowsTitlebar, mountWindowsTitlebarLayout } from './windows-titlebar'
@@ -66,6 +67,7 @@ const desktopBridge: {
   protocolVersion: number
   hideSidebarManagement?: boolean
   hiddenSettingsSections?: readonly string[]
+  safeHeroBrand?: SafeHeroBrand
   openMobilePairing?: () => Promise<void>
   getMobileStatus?: () => Promise<{ connected?: boolean }>
   onMobileStatus?: (listener: (status: { connected: boolean }) => void) => () => void
@@ -94,6 +96,10 @@ const desktopBridge: {
 if (appDocument) {
   desktopBridge.hideSidebarManagement = process.argv.includes(HIDE_SIDEBAR_MANAGEMENT_FLAG)
   if (desktopBridge.hideSidebarManagement) desktopBridge.hiddenSettingsSections = RELEASE_HIDDEN_SETTINGS_SECTIONS
+  if (isSafeModeRenderer(process.argv)) {
+    const brand = safeHeroBrandFromArguments(process.argv)
+    if (brand !== undefined) desktopBridge.safeHeroBrand = brand
+  }
   desktopBridge.keyboard = {
     closeWindow: revision => ipcRenderer.invoke(DESKTOP_IPC.shortcutsCloseWindow, revision) as Promise<void>,
     subscribe: listener => {

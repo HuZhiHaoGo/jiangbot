@@ -1,8 +1,50 @@
 diff --git a/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js b/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
-index f0836c2..f4043f7 100644
+index f0836c2..3a3be78 100644
 --- a/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
 +++ b/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
-@@ -1463,8 +1463,9 @@ function mapUsage(usage) {
+@@ -1048,6 +1048,8 @@ const modelProfile = z.object({
+ /** A {@link modelProfile} whose id lives in the `modelOverrides` dict key. */
+ const modelOverride = z.object(modelFields);
+ const profile = z.object({
++	// Validate the secret during profile resolution so schema errors cannot echo it.
++	apiKey: z.any().role("secret"),
+ 	apiKeyEnv: z.string().role("credential-ref"),
+ 	displayName: z.string(),
+ 	api: z.union(supportedProtocols()),
+@@ -1126,6 +1128,12 @@ function resolveProfiles(providers, validation = "strict") {
+ 		if (provider.length === 0) throw new Error("llm-pi-ai: provider names must be non-empty");
+ 		if (source.baseURL !== void 0 && source.baseURL.length === 0) throw new Error(`llm-pi-ai: provider "${provider}" has an empty baseURL`);
+ 		if (source.displayName !== void 0 && source.displayName.length === 0) throw new Error(`llm-pi-ai: provider "${provider}" has an empty displayName`);
++		const { apiKey, apiKeyEnv, retryPolicy, models: _models, displayName: _displayName, ...rest } = source;
++		const label = `llm-pi-ai: provider "${provider}"`;
++		if (apiKey !== void 0 && apiKeyEnv !== void 0) throw new Error(`${label} must configure only one of apiKey and apiKeyEnv`);
++		if (apiKeyEnv !== void 0 && !isCredentialRefName(apiKeyEnv)) throw new Error(`${label} apiKeyEnv must name a credential; use apiKey for a direct key`);
++		const key = typeof apiKey === "string" ? normalizeApiKey(apiKey) : void 0;
++		if (apiKey !== void 0 && !key?.ok) throw new Error(`${label} apiKey must be a non-empty key valid in an HTTP header`);
+ 		assertValidHeaders(provider, source.headers);
+ 		const streamIdleTimeoutMs = source.streamIdleTimeoutMs ?? 3e5;
+ 		if (!Number.isFinite(streamIdleTimeoutMs) || streamIdleTimeoutMs <= 0 || streamIdleTimeoutMs > MAX_TIMER_DELAY_MS) throw new Error(`llm-pi-ai: provider "${provider}" streamIdleTimeoutMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`);
+@@ -1164,17 +1172,17 @@ function resolveProfiles(providers, validation = "strict") {
+ 				...source.api === void 0 ? {} : { api: source.api },
+ 				...source.baseURL === void 0 ? {} : { baseURL: source.baseURL },
+ 				models: catalog.models,
+-				namesCredential: source.apiKeyEnv !== void 0
++				namesCredential: key?.ok === true || apiKeyEnv !== void 0
+ 			});
+ 		} catch (error) {
+ 			if (validation === "strict" || !(error instanceof PiAiCatalogError)) throw error;
+ 			catalogError ??= error.message;
+ 		}
+-		const { apiKeyEnv, retryPolicy, models: _models, displayName: _displayName, ...rest } = source;
+ 		resolved.set(provider, {
+ 			...rest,
+ 			provider,
+ 			displayName,
++			...key?.ok ? { apiKey: key.value } : {},
+ 			...apiKeyEnv === void 0 ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
+ 			streamIdleTimeoutMs,
+ 			maxRequestImageBytes,
+@@ -1463,8 +1471,9 @@ function mapUsage(usage) {
  	};
  }
  function classifyPiAiError(message) {
@@ -13,7 +55,7 @@ index f0836c2..f4043f7 100644
  	if (/\b429\b|rate.?limit/i.test(message)) return "RATE_LIMIT";
  	if (/\b413\b|failed to buffer the request body:\s*length limit exceeded|payload too large|request body too large/i.test(message)) return "INVALID_REQUEST";
  	if (/\b400\b|invalid.?request/i.test(message)) return "INVALID_REQUEST";
-@@ -1539,6 +1540,14 @@ function mapStopReason(message, contextWindow) {
+@@ -1539,6 +1548,14 @@ function mapStopReason(message, contextWindow) {
  		}
  	}
  }
@@ -28,7 +70,7 @@ index f0836c2..f4043f7 100644
  /**
  * Translate the pi-ai event stream into StreamChunks. pi-ai never throws
  * mid-stream — failures arrive as `error` events, which become error/aborted
-@@ -1555,6 +1564,7 @@ function mapStopReason(message, contextWindow) {
+@@ -1555,6 +1572,7 @@ function mapStopReason(message, contextWindow) {
  */
  async function* toStreamChunks(events, contextWindow, callerSignal, requestedModel) {
  	const toolIds = /* @__PURE__ */ new Map();
@@ -36,7 +78,7 @@ index f0836c2..f4043f7 100644
  	let argumentsError;
  	for await (const event of events) switch (event.type) {
  		case "start": break;
-@@ -1572,16 +1582,19 @@ async function* toStreamChunks(events, contextWindow, callerSignal, requestedMod
+@@ -1572,16 +1590,19 @@ async function* toStreamChunks(events, contextWindow, callerSignal, requestedMod
  				text: event.delta
  			};
  			break;
@@ -61,7 +103,7 @@ index f0836c2..f4043f7 100644
  		case "thinking_start":
  			yield {
  				type: "block-start",
-@@ -1596,16 +1609,19 @@ async function* toStreamChunks(events, contextWindow, callerSignal, requestedMod
+@@ -1596,16 +1617,19 @@ async function* toStreamChunks(events, contextWindow, callerSignal, requestedMod
  				text: event.delta
  			};
  			break;
@@ -86,7 +128,7 @@ index f0836c2..f4043f7 100644
  		case "toolcall_start": {
  			const partial = event.partial.content[event.contentIndex];
  			const id = partial?.type === "toolCall" ? partial.id : "";
-@@ -1633,6 +1649,7 @@ async function* toStreamChunks(events, contextWindow, callerSignal, requestedMod
+@@ -1633,6 +1657,7 @@ async function* toStreamChunks(events, contextWindow, callerSignal, requestedMod
  			break;
  		}
  		case "toolcall_end":
@@ -94,7 +136,7 @@ index f0836c2..f4043f7 100644
  			if (event.toolCall.argumentsError !== void 0) {
  				argumentsError ??= `Tool call "${event.toolCall.name}": ${event.toolCall.argumentsError}`;
  				break;
-@@ -1648,18 +1665,20 @@ async function* toStreamChunks(events, contextWindow, callerSignal, requestedMod
+@@ -1648,18 +1673,20 @@ async function* toStreamChunks(events, contextWindow, callerSignal, requestedMod
  				}
  			};
  			break;
@@ -120,7 +162,7 @@ index f0836c2..f4043f7 100644
  		case "error":
  			yield {
  				type: "usage",
-@@ -1857,6 +1876,7 @@ function requestHeaders(configured, options, baseURL, prepare) {
+@@ -1857,6 +1884,7 @@ function requestHeaders(configured, options, baseURL, prepare) {
  		});
  		const headers = prepare === void 0 ? initial : prepare(request, initial);
  		for (const [name, value] of Object.entries(attributionHeaders())) headers.set(name, value);
@@ -128,7 +170,7 @@ index f0836c2..f4043f7 100644
  		return Object.fromEntries(headers);
  	} catch (error) {
  		throw new LlmError(`pi-ai request header preparation failed for provider "${options.provider}": ${requestHeaderDiagnostic(error)}`, "REQUEST_HEADERS", { cause: error });
-@@ -2371,7 +2391,64 @@ async function readBounded(response, url) {
+@@ -2371,7 +2399,64 @@ async function readBounded(response, url) {
  * a working endpoint's catalog. Missing names fall back to the adopted id so
  * the Web form receives a complete human-readable row.
  */
@@ -194,7 +236,7 @@ index f0836c2..f4043f7 100644
  	const listing = body;
  	const data = listing?.data;
  	let listed;
-@@ -2386,6 +2463,7 @@ function readListing(body) {
+@@ -2386,6 +2471,7 @@ function readListing(body) {
  	}
  	const models = [];
  	for (const { key, raw } of listed) {
@@ -202,7 +244,7 @@ index f0836c2..f4043f7 100644
  		const entry = raw;
  		const id = label(key, entry?.id);
  		if (id === void 0) continue;
-@@ -2396,7 +2474,8 @@ function readListing(body) {
+@@ -2396,7 +2482,8 @@ function readListing(body) {
  			id,
  			name,
  			...contextWindow === void 0 ? {} : { contextWindow },
@@ -212,7 +254,7 @@ index f0836c2..f4043f7 100644
  		});
  	}
  	return models;
-@@ -2432,7 +2511,8 @@ async function discoverModels(request, storedProfile) {
+@@ -2432,7 +2519,8 @@ async function discoverModels(request, storedProfile) {
  			name: model.name,
  			contextWindow: model.contextWindow,
  			maxTokens: model.maxTokens,
@@ -222,7 +264,7 @@ index f0836c2..f4043f7 100644
  		}));
  	}
  	if (request.baseURL === void 0 || request.baseURL.length === 0) throw new LlmError(`pi-ai ships no catalog for provider "${request.provider ?? ""}", so its models can only come from its endpoint; set a baseURL, or enter this provider's models by hand`, "DISCOVERY_FAILED");
-@@ -2474,7 +2554,7 @@ async function discoverModels(request, storedProfile) {
+@@ -2474,7 +2562,7 @@ async function discoverModels(request, storedProfile) {
  	} catch (error) {
  		throw new LlmError(`${url} did not answer with JSON`, "DISCOVERY_FAILED", { cause: error });
  	}
@@ -231,3 +273,56 @@ index f0836c2..f4043f7 100644
  }
  //#endregion
  //#region lib/types/login.js
+@@ -2932,6 +3020,7 @@ function apply(ctx, config) {
+ 		return raw;
+ 	});
+ 	const resolveApiKey = async (provider, profile) => {
++		if (profile.apiKey !== void 0) return profile.apiKey;
+ 		const ref = profile.apiKeyEnv;
+ 		if (ref === void 0) return void 0;
+ 		const credentials = ctx.get("credentials");
+diff --git a/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/types/config.d.ts b/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/types/config.d.ts
+index 479f0b5..bc888f9 100644
+--- a/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/types/config.d.ts
++++ b/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/types/config.d.ts
+@@ -65,6 +65,8 @@ export declare const DEFAULT_INPUT: readonly PiAiModality[];
+ export type { PiAiCompatProfile, PiAiModality, PiAiModelOverride, PiAiModelProfile, PiAiReasoningEfforts, PiAiThinkingFormat, } from './catalog.ts';
+ /** Configuration for one pi-ai provider route; the `providers` dict key IS the route. */
+ export interface PiAiProviderProfile {
++    /** Inline API key. Use either this field or apiKeyEnv. */
++    apiKey?: string;
+     /** Credential reference (environment-variable name) resolved per request through `ctx.credentials`. */
+     apiKeyEnv?: string;
+     /** Name shown by configuration surfaces; defaults to the route key. */
+@@ -222,6 +224,7 @@ export type Options = {
+ /** Runtime schema for {@link Config}. */
+ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+     providers: z<NoInfer<import("@deepseek-ai/cosmokit").Dict<{
++        apiKey?: unknown;
+         apiKeyEnv?: string | null;
+         displayName?: string | null;
+         api?: string | null;
+@@ -252,6 +255,7 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+         requestImageMaxBytes?: number | null;
+         retryPolicy?: RetryPolicyConfig | null;
+     } & import("@deepseek-ai/cosmokit").Dict, string>>, NoInfer<import("@deepseek-ai/cosmokit").Dict<Schemastery.ObjectT<NoInfer<{
++        apiKey: z<unknown, unknown, "plain">;
+         apiKeyEnv: z<string, string, "plain">;
+         displayName: z<string, string, "plain">;
+         api: z<string, string, "plain">;
+@@ -289,6 +293,7 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+     }>>, string>>, "volatile-defined">;
+ }>>, Schemastery.ObjectT<NoInfer<{
+     providers: z<NoInfer<import("@deepseek-ai/cosmokit").Dict<{
++        apiKey?: unknown;
+         apiKeyEnv?: string | null;
+         displayName?: string | null;
+         api?: string | null;
+@@ -319,6 +324,7 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+         requestImageMaxBytes?: number | null;
+         retryPolicy?: RetryPolicyConfig | null;
+     } & import("@deepseek-ai/cosmokit").Dict, string>>, NoInfer<import("@deepseek-ai/cosmokit").Dict<Schemastery.ObjectT<NoInfer<{
++        apiKey: z<unknown, unknown, "plain">;
+         apiKeyEnv: z<string, string, "plain">;
+         displayName: z<string, string, "plain">;
+         api: z<string, string, "plain">;

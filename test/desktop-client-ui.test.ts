@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
 import { describe, expect, it, vi } from 'vitest'
+import type { SafeHeroBrand } from '../src/shared/safe-hero-brand'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
@@ -19,7 +20,7 @@ const { JSDOM } = createRequire(import.meta.url)('jsdom') as {
 }
 
 interface Registration {
-  config: { name: string; id?: string; order?: number; priority?: number }
+  config: { name: string; id?: string; order?: number; priority?: number; inject?: () => Record<string, unknown> }
   component: (props: Record<string, unknown>) => unknown
 }
 
@@ -43,11 +44,14 @@ describe('DSH Desktop client slot occupants', () => {
       createElement: vi.fn(() => ({ id: '', dataset: {}, textContent: '', remove: removeStyle })),
       head: { appendChild: (node: { textContent?: string }) => appended.push(node) }
     }
+    const desktopBridge: { safeHeroBrand?: SafeHeroBrand } & Record<string, unknown> = {
+      getRepairDraft: vi.fn(), openRepairAgent: vi.fn()
+    }
     vm.runInNewContext(source, {
       document,
       navigator: { language: 'en-US' },
       window: {
-        dshDesktop: { getRepairDraft: vi.fn(), openRepairAgent: vi.fn() },
+        dshDesktop: desktopBridge,
         __ModuleLoader__: {
           load: (value: typeof definition) => {
             definition = value
@@ -97,7 +101,8 @@ describe('DSH Desktop client slot occupants', () => {
         return () => undefined
       }
     }
-    plugin.apply({ slots, locale: { register: () => () => undefined, bind: () => (key: string) => key }, effect: (setup: () => (() => void) | undefined) => { disposeStyle = setup() } })
+    const context = { slots, locale: { register: () => () => undefined, bind: () => (key: string) => key }, effect: (setup: () => (() => void) | undefined) => { disposeStyle = setup() } }
+    plugin.apply(context)
 
     expect(plugin.inject).toEqual(['locale', 'slots', 'remote.session', 'sessions', 'uiWorkspace'])
     expect(registrations.map(({ config }) => config.name)).toEqual([
@@ -178,5 +183,18 @@ describe('DSH Desktop client slot occupants', () => {
     expect(core.entriesOfSlot(heroSlot).map(entry => entry.component)).toEqual([custom])
     removeCustom()
     expect(core.entriesOfSlot(heroSlot).map(entry => entry.component)).toEqual([fallback])
+
+    registrations.length = 0
+    desktopBridge.safeHeroBrand = { mark: '示', headline: '示例品牌', badge: '', intro: '示例工作台' }
+    plugin.apply(context)
+    const safe = registrations.filter(({ config }) => config.name === 'conversation.hero.brand.content')
+    expect(safe).toHaveLength(1)
+    const entry = safe[0]
+    if (entry === undefined) throw new Error('Expected the Safe Mode brand registration')
+    const content = JSON.stringify(entry.component(entry.config.inject?.() ?? {}))
+    expect(content).toContain('示例品牌')
+    expect(content).toContain('示例工作台')
+    expect(content).toContain('dshSafeBrandMark')
+    expect(content).not.toContain('dshSafeBrandBadge')
   })
 })

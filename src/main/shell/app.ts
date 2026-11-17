@@ -28,6 +28,8 @@ import {
 import { defaultWebHome, type WebHomePreview } from '../profile/web-home-import'
 import { developmentEnvironment, skipBlockingWindowsDevHmr } from '../development-environment'
 import { desktopBrandLogoPaths } from './brand-logo'
+import { readSafeHeroBrand } from './safe-hero-brand'
+import { safeHeroBrandArgument } from '../../shared/safe-hero-brand'
 import { workspaceDirectoryPrompt } from './directory-picker'
 import { clearNativeLocaleAttempt, confirmNativeLocaleRestart, NativeDirectoryPicker, nativeLocaleRelaunchArguments, shouldCalibrateNativeLocale } from './native-locale'
 import { nativeLocaleMessages } from './native-locale-messages'
@@ -594,6 +596,10 @@ async function main(): Promise<void> {
   const splashPage = packagedPagePath('splash.html')
   let mainWindow: BrowserWindow | undefined
   const rendererArguments = safeMode ? [SAFE_MODE_RENDERER_FLAG] : []
+  if (safeMode) {
+    const brand = await readSafeHeroBrand(dshHome)
+    if (brand !== undefined) rendererArguments.push(safeHeroBrandArgument(brand))
+  }
   if (process.platform === 'win32' && app.isPackaged && readDesktopPackageMetadata().dshDesktopHideSidebarManagement === true) {
     rendererArguments.push(HIDE_SIDEBAR_MANAGEMENT_FLAG)
   }

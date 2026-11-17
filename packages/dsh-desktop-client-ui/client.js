@@ -37,6 +37,18 @@ window.__ModuleLoader__.load({
       return React.createElement(FishLogo, props)
     }
 
+    function SafeHeroBrand({ brand }) {
+      const h = React.createElement
+      return h('div', { 'data-dsh-safe-hero-brand': '' },
+        h('div', { className: 'dshSafeBrandRow' },
+          brand.mark && h('span', { className: 'dshSafeBrandMark', 'aria-hidden': 'true' }, brand.mark),
+          brand.headline && h('span', null, brand.headline),
+          brand.badge && h('span', { className: 'dshSafeBrandBadge' }, brand.badge)
+        ),
+        brand.intro && h('div', { className: 'dshSafeBrandIntro' }, brand.intro)
+      )
+    }
+
     function OpenUnpreviewableFile({ absolutePath, openWorkspacePath, t }) {
       const [error, setError] = React.useState('')
       const label = t('openLocal')
@@ -356,6 +368,26 @@ window.__ModuleLoader__.load({
             outline:2px solid var(--dsw-alias-state-business-primary); outline-offset:2px;
             background:var(--dsw-alias-bg-base);
           }
+          [data-dsh-safe-hero-brand] { display:grid; gap:8px; min-width:0; text-align:center; }
+          [data-dsh-safe-hero-brand] .dshSafeBrandRow {
+            display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:10px;
+            font-size:26px; line-height:32px; font-weight:500;
+            color:var(--dsw-alias-label-primary); overflow-wrap:anywhere;
+          }
+          [data-dsh-safe-hero-brand] .dshSafeBrandMark,
+          [data-dsh-safe-hero-brand] .dshSafeBrandBadge {
+            color:var(--dsw-alias-label-primary-bluish); background:var(--dsw-alias-state-business-tertiary);
+          }
+          [data-dsh-safe-hero-brand] .dshSafeBrandMark {
+            display:grid; place-items:center; min-width:34px; height:34px; padding:0 4px;
+            box-sizing:border-box; border-radius:6px; font-size:18px; font-weight:700;
+          }
+          [data-dsh-safe-hero-brand] .dshSafeBrandBadge {
+            padding:0 7px; border-radius:24px; font-size:12px; line-height:18px;
+          }
+          [data-dsh-safe-hero-brand] .dshSafeBrandIntro {
+            font-size:14px; line-height:20px; color:var(--dsw-alias-label-caption); overflow-wrap:anywhere;
+          }
         `
         document.head.appendChild(style)
         return () => style.remove()
@@ -373,6 +405,15 @@ window.__ModuleLoader__.load({
           })
         )
       )
+      const safeHeroBrand = window.dshDesktop?.safeHeroBrand
+      if (safeHeroBrand !== undefined) {
+        ctx.slots.inject('conversation.hero.brand.content', () =>
+          ctx.slots.register({
+            name: 'conversation.hero.brand.content',
+            inject: () => ({ brand: safeHeroBrand })
+          }, SafeHeroBrand)
+        )
+      }
       ctx.slots.inject('sidebar.right.tab.document.unpreviewable', () =>
         ctx.slots.register({
           name: 'sidebar.right.tab.document.unpreviewable',

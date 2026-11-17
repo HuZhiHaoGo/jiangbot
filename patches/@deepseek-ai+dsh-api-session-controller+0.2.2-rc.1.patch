@@ -117,7 +117,7 @@ index 2b158ec..1aa3c75 100644
  			* synchronous-addressability guarantee as {@link ClientSessions.create}:
  			* on resolution the child is catalogued and may be explicitly retained).
 diff --git a/node_modules/@deepseek-ai/dsh-api-session-controller/lib/index.js b/node_modules/@deepseek-ai/dsh-api-session-controller/lib/index.js
-index 1ed54d7..647d20a 100644
+index 1ed54d7..b448021 100644
 --- a/node_modules/@deepseek-ai/dsh-api-session-controller/lib/index.js
 +++ b/node_modules/@deepseek-ai/dsh-api-session-controller/lib/index.js
 @@ -2,13 +2,13 @@ import { hostname } from "node:os";
@@ -272,7 +272,19 @@ index 1ed54d7..647d20a 100644
  	const providers = ctx.llm.listProviders();
  	const catalog = await Promise.all(providers.map(async (provider) => {
  		try {
-@@ -713,7 +750,7 @@ var SessionCommandController = class {
+@@ -551,7 +588,10 @@ async function hasProviderApiKey(ctx) {
+ 	const namespaces = settings.describe({ redactSecrets: true });
+ 	for (const provider of ctx.llm.listConfigurableProviders()) {
+ 		if (provider.provider === "deepseek-account") continue;
+-		let profile = namespaces.find((namespace) => namespace.ns === provider.settingsNs)?.value;
++		const namespace = namespaces.find((namespace) => namespace.ns === provider.settingsNs);
++		const path = provider.settingsPath;
++		if (namespace?.secrets?.some((secret) => secret.set && secret.path.length === path.length + 1 && secret.path.at(-1) === "apiKey" && path.every((key, index) => secret.path[index] === key))) return true;
++		let profile = namespace?.value;
+ 		for (const key of provider.settingsPath) profile = typeof profile === "object" && profile !== null ? Reflect.get(profile, key) : void 0;
+ 		if (typeof profile !== "object" || profile === null) continue;
+ 		const ref = Reflect.get(profile, "apiKeyEnv");
+@@ -713,7 +753,7 @@ var SessionCommandController = class {
  				};
  				await this.ctx.llm.resolveCallConfig(selected);
  				agent.model.select(selected);
@@ -281,7 +293,7 @@ index 1ed54d7..647d20a 100644
  					this.ctx.logger.warn(`session-controller: model selection changed for the Session but the default was not saved: ${String(error)}`);
  				});
  				return { selected: { ...selected } };
-@@ -746,6 +783,34 @@ var SessionCommandController = class {
+@@ -746,6 +786,34 @@ var SessionCommandController = class {
  			throw new RemoteError("gateway/internal", `failed to rename session "${request.sessionId}": ${String(error)}`, {});
  		}
  	}
@@ -316,7 +328,7 @@ index 1ed54d7..647d20a 100644
  	/**
  	* Create a new ordinary Session from an exact event prefix. An explicit
  	* `atSeq` is the inclusive cut; an omitted value selects the latest
-@@ -786,8 +851,8 @@ var SessionCommandController = class {
+@@ -786,8 +854,8 @@ var SessionCommandController = class {
  			const childId = brandString(`session-${randomUUID()}`);
  			const composition = await this.agents.composeAgent(this.agents.presetForObservation(source));
  			try {
@@ -327,7 +339,7 @@ index 1ed54d7..647d20a 100644
  					sessionId: childId,
  					seed,
  					inheritedEventCount: SessionLogOffset(boundary + 1),
-@@ -802,6 +867,7 @@ var SessionCommandController = class {
+@@ -802,6 +870,7 @@ var SessionCommandController = class {
  					},
  					setup: composition.setup
  				});
@@ -335,7 +347,7 @@ index 1ed54d7..647d20a 100644
  			} catch (error) {
  				throw new RemoteError("gateway/internal", `failed to fork session "${request.sessionId}": ${String(error)}`, {});
  			}
-@@ -1021,6 +1087,126 @@ function hasPromptRequest(agent, requestId) {
+@@ -1021,6 +1090,126 @@ function hasPromptRequest(agent, requestId) {
  	});
  }
  //#endregion
@@ -462,7 +474,7 @@ index 1ed54d7..647d20a 100644
  //#region lib/types/control.js
  /** Live Session projection state with reconnect baselines. */
  /** Owns the Host-wide Session control stream. */
-@@ -3111,6 +3297,7 @@ let SessionSkillCatalog = (() => {
+@@ -3111,6 +3300,7 @@ let SessionSkillCatalog = (() => {
  				const scope = live ?? lease?.key;
  				try {
  					return { skills: (await skillRegistry.list({
@@ -470,7 +482,7 @@ index 1ed54d7..647d20a 100644
  						cwd,
  						scope
  					})).filter(isUserInvocable).map((skill) => ({
-@@ -3236,6 +3423,171 @@ const SessionMediaReferences = {
+@@ -3236,6 +3426,171 @@ const SessionMediaReferences = {
  		}), "session-controller: /api/file");
  	}
  };
@@ -642,7 +654,7 @@ index 1ed54d7..647d20a 100644
  //#endregion
  //#region lib/types/archived-session-gate.js
  /**
-@@ -3424,6 +3776,7 @@ let SessionController = (() => {
+@@ -3424,6 +3779,7 @@ let SessionController = (() => {
  	let _openWorkspacePath_decorators;
  	let _workspacePathApplications_decorators;
  	let _rename_decorators;
@@ -650,7 +662,7 @@ index 1ed54d7..647d20a 100644
  	let _fork_decorators;
  	let _prompt_decorators;
  	let _attachment_decorators;
-@@ -3452,6 +3805,7 @@ let SessionController = (() => {
+@@ -3452,6 +3808,7 @@ let SessionController = (() => {
  			_openWorkspacePath_decorators = [Remote("openWorkspacePath")];
  			_workspacePathApplications_decorators = [Remote("workspacePathApplications")];
  			_rename_decorators = [Remote("rename")];
@@ -658,7 +670,7 @@ index 1ed54d7..647d20a 100644
  			_fork_decorators = [Remote("fork")];
  			_prompt_decorators = [Remote("prompt")];
  			_attachment_decorators = [Remote("attachment")];
-@@ -3577,6 +3931,17 @@ let SessionController = (() => {
+@@ -3577,6 +3934,17 @@ let SessionController = (() => {
  				},
  				metadata: _metadata
  			}, null, _instanceExtraInitializers);
@@ -676,7 +688,7 @@ index 1ed54d7..647d20a 100644
  			__esDecorate(this, null, _fork_decorators, {
  				kind: "method",
  				name: "fork",
-@@ -3820,10 +4185,12 @@ let SessionController = (() => {
+@@ -3820,10 +4188,12 @@ let SessionController = (() => {
  			await this.listState.initialize();
  			ctx.plugin(SessionFileReferences);
  			ctx.plugin(SessionMediaReferences);
@@ -690,7 +702,7 @@ index 1ed54d7..647d20a 100644
  			});
  			ctx.on("session/disposed", (session) => {
  				ctx.emit("api-session/removed", session.id);
-@@ -3942,7 +4309,7 @@ let SessionController = (() => {
+@@ -3942,7 +4312,7 @@ let SessionController = (() => {
  				model: model.id,
  				...model.reasoning?.defaultEffort === void 0 ? {} : { reasoningEffort: ReasoningEffortId(model.reasoning.defaultEffort) }
  			};
@@ -699,7 +711,7 @@ index 1ed54d7..647d20a 100644
  		}
  		/**
  		* Describe every currently routable model for Host-generation selectors.
-@@ -4026,6 +4393,10 @@ let SessionController = (() => {
+@@ -4026,6 +4396,10 @@ let SessionController = (() => {
  		rename(request) {
  			return this.commands.rename(request);
  		}

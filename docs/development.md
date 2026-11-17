@@ -33,6 +33,21 @@ DSH_DEV_PROFILE=dsh-desktop-dev-workbench DSH_DEV_HARNESS_PORT=43132 DSH_DEV_MOB
 
 On PowerShell, set the same names through `$env:DSH_DEV_PROFILE`, `$env:DSH_DEV_HARNESS_PORT` and `$env:DSH_DEV_MOBILE_PORT` before `npm run dev`. Set a separate profile for experiments with migrations, plugins, or recovery. The profile must be a directory name separate from `dsh-desktop`. The ports must be distinct integers from 1024 to 65535. These overrides are ignored by production builds. Development port defaults are 43130 for Harness and 43128 for mobile.
 
+## Custom model credentials
+
+For a provider under `llm-pi-ai.config.providers` in the active Profile's
+`cordis.patch.yml`, choose one credential field. Use `apiKey: "your-api-key"`
+to supply the credential directly, or `apiKeyEnv: YOUR_API_KEY` to refer to
+a saved credential or an environment variable by name. To switch an existing
+provider to a direct key, remove its `apiKeyEnv` field, add `apiKey`, and
+restart Desktop after saving.
+
+An inline key is stored in plaintext in the Profile patch. The Models page
+shows its configured status and the patch file remains the place to edit it.
+The Harness 0.2.2-rc.1 compatibility patches can be retired when the upstream
+adapter, model setup check, and Models page support the same fields and
+keep the key out of settings responses and credential validation errors.
+
 ## Workbench package lifecycle
 
 Workbench Market resolves reviewed catalog targets, but delegates package installation,
@@ -139,6 +154,8 @@ Do not invoke `electron-builder --win` from macOS or Linux for a distributable W
 `npm run package:win` embeds the `dshDesktopHideSidebarManagement` flag in the application's package metadata. The shipped sidebar hides Workbenches and Plugins. The left sidebar, conversation tab row, and right guide More menus omit Browse other plugins and Create your plugin. Folded conversation tabs and other menu contributions remain available. The conversation menu trigger is omitted when it has no rows. The Settings navigation hides Built-in Plugins, Plugin Market, and Branding. Models remains available. Development launches and other packaging commands retain these entries.
 
 Harness 0.2.2-rc.1 menu patches keep the existing slot declarations and contributions from other plugins. Better Sidebar 0.32.0 owns its right guide menu, so the web frontend patch filters the two data rows and their separator only for its `data-guide-more` anchor. Reorder and folded guide cards use the original menu handlers. Recheck that marker and the item IDs when updating Better Sidebar. Replace these patches when upstream exposes equivalent per-entry visibility controls.
+
+Safe Mode can display the text branding from `dsh-brand.json` in the active Desktop data directory. The main process validates and passes only the mark, headline, badge, and introduction to the recovery window. The bundled Desktop UI fills the optional full hero-brand slot. The normal mark and title seats remain the fallback, including when the file is missing or unreadable. Safe Mode does not load the market branding plugin or resolve image references. Revisit the patch when Harness offers a full hero-brand slot.
 
 The Windows release installs as 匠宝 with `JiangBot.exe` and produces `dist/JiangBot-windows-x64-setup.exe`. The development installer uses `JiangBotDev.exe` and produces `dist-dev/JiangBot-dev-windows-x64-setup.exe`. The Windows application IDs and the `dsh-desktop` user data directory are retained for upgrades. A registered upgrade in the same install directory replaces the legacy executable and its desktop and Start menu shortcuts.
 

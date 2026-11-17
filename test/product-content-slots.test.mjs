@@ -61,4 +61,18 @@ describe('optional product content slots', () => {
     expect(nodes).toContain('Composer')
     expect(calls.filter(name => name === 'conversation.hero.brand.title')).toHaveLength(1)
   })
+
+  it('replaces the whole hero identity when Safe Mode contributes one, with the composer still mounted', async () => {
+    const { HeroShell } = await components('dsh-client-ui-conversation', ['HeroShell'])
+    const view = HeroShell({
+      t: key => ({ 'hero.headline': 'Welcome', 'hero.preview': 'Preview' }[key]),
+      renderSlot: (name, _props, options) => name === 'conversation.hero.brand.content' ? 'Local brand' : options?.fallback,
+      children: 'Composer'
+    })
+    const nodes = flatten(expand(view))
+    expect(nodes.filter(node => node === 'Local brand')).toHaveLength(1)
+    expect(nodes).toContain('Composer')
+    expect(nodes).not.toContain('Welcome')
+    expect(nodes).not.toContain('Preview')
+  })
 })

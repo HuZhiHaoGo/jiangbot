@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { ensureSafeModeProfile, SAFE_MODE_PROFILE } from '../../src/main/recovery/safe-mode-profile'
-import { DesktopHostProcess } from '../../src/main/shell/backend/host-process'
+import { DesktopHostFatalError, DesktopHostProcess } from '../../src/main/shell/backend/host-process'
 import { writeDesktopProductPatch } from '../../src/main/shell/product-patch'
 import { ensureHostBundle, hostBundle } from './host-bundle-helper'
 
@@ -17,7 +17,10 @@ afterEach(async () => {
   await Promise.all(temporary.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
 
-it('boots runProfile on a temporary home and redirects the authenticated document', async () => {
+it.each([
+  ['inline API key', 'apiKey'],
+  ['misplaced credential', 'apiKeyEnv']
+] as const)('boots a temporary Profile with %s configuration or reports a safe error', async (_name, keyField) => {
   await ensureHostBundle()
   const home = await mkdtemp(join(tmpdir(), 'dsh-shell-profile-'))
   temporary.push(home)
@@ -30,7 +33,17 @@ it('boots runProfile on a temporary home and redirects the authenticated documen
     dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } }
   }))
   await writeFile(join(profile, 'cordis.yml'), '[]\n')
-  await writeFile(join(profile, 'cordis.patch.yml'), '[]\n')
+  const fakeKey = 'test-inline-profile-key'
+  await writeFile(join(profile, 'cordis.patch.yml'), `- id: llm-pi-ai
+  config:
+    providers:
+      test-gateway:
+        ${keyField}: "${fakeKey}"
+        api: openai-completions
+        baseURL: https://gateway.example.test/v1
+        models:
+          - id: test-model
+`)
   const host = new DesktopHostProcess({
     node: electron,
     entry: hostBundle,
@@ -42,6 +55,15 @@ it('boots runProfile on a temporary home and redirects the authenticated documen
     primaryRuntime: join(home, 'unused-runtime')
   })
   try {
+    if (keyField === 'apiKeyEnv') {
+      const error: unknown = await host.start().catch((failure: unknown) => failure)
+      expect(error).toBeInstanceOf(DesktopHostFatalError)
+      if (!(error instanceof DesktopHostFatalError)) throw new Error('Expected a fatal Profile diagnostic')
+      expect(error.diagnostic).toContain('use apiKey for a direct key')
+      expect(error.diagnostic).not.toContain(fakeKey)
+      expect(error.message).not.toContain(fakeKey)
+      return
+    }
     const ready = await host.start()
     const url = new URL(ready.url)
     expect(url.protocol).toBe('http:')
