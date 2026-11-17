@@ -3,6 +3,7 @@ const verifyPackagedPptRuntime = require('../verify/verify-packaged-ppt-runtime.
 const { afterPack: verifyOfficeRuntime } = require('../verify/verify-office-runtime.cjs')
 const { verifyAsarUnpack } = require('../verify/verify-asar-unpack.cjs')
 const { verifyPackagedHarness } = require('../verify/verify-packaged-harness.cjs')
+const { loadPrivateSqlUsageSettings, stageSqlUsageResources } = require('./stage-sql-usage-resources.cjs')
 
 /** electron-builder afterPack: package-content gates run before signing. */
 module.exports = async function afterPack(context) {
@@ -14,4 +15,8 @@ module.exports = async function afterPack(context) {
   await verifyPackagedHarness(context)
   await verifyPackagedPptRuntime(context)
   await verifyOfficeRuntime(context)
+  if (context.electronPlatformName === 'win32') {
+    await stageSqlUsageResources(resourcesDir, context.packager.config.extraMetadata?.dshDesktopPackagedSqlUsage === true
+      ? loadPrivateSqlUsageSettings() : undefined)
+  }
 }

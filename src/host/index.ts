@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { PluginOperationRunId } from '@deepseek-ai/dsh-plugin-manager/diagnostic'
 import { localDragResource } from './file-drag'
 import { installOperationDiagnostics } from './operation-diagnostics'
-import { pluginOperationHost } from './upstream-api'
+import { pluginOperationHost, subscribeModelUsage } from './upstream-api'
 import { delimiter, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { registerOfficeEngineResolution } from '../../build/office-engine-resolution.mjs'
@@ -100,6 +100,13 @@ async function main(): Promise<void> {
   })
   process.once('disconnect', () => { void stop() })
   const { ctx } = await application
+  if (process.env.DSH_DESKTOP_REPORT_MODEL_USAGE === '1') {
+    try {
+      subscribeModelUsage(ctx, report => { sendIpc({ type: 'model-token-usage', report }) })
+    } catch {
+      console.warn('[token-usage] Host observer unavailable')
+    }
+  }
   installOperationDiagnostics(pluginOperationHost(ctx), async record => {
     await send({ type: 'plugin-operation', record })
   }, 32, runId)

@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { electronNodeExecutable } from '../../src/main/shell/backend/electron-node-executable'
 import { DesktopHostFatalError, DesktopHostProcess, redactHostOutput } from '../../src/main/shell/backend/host-process'
 
@@ -69,6 +69,25 @@ describe('desktop host process', () => {
     })
     await expect(host.start()).rejects.toBeInstanceOf(DesktopHostFatalError)
     await host.stop()
+  })
+
+  it('accepts only the validated token usage fields from the Host child process', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'shell-host-usage-'))
+    temporary.push(directory)
+    const onModelUsage = vi.fn()
+    const host = new DesktopHostProcess({
+      node: electron, entry: fixture, runtimeDir: directory, projectDir: directory, dshHome: directory,
+      environment: { FIXTURE_MODE: 'usage' }, onModelUsage
+    })
+    try {
+      await host.start()
+      expect(onModelUsage).toHaveBeenCalledExactlyOnceWith({
+        sessionId: 'fixture', modelName: 'model', requestKind: 'chat', usedAt: 1,
+        inputTokens: 3, outputTokens: 4, cacheReadTokens: null, cacheWriteTokens: null
+      })
+    } finally {
+      await host.stop()
+    }
   })
 })
 

@@ -20,6 +20,17 @@ if (process.env.FIXTURE_MODE === 'invalid') {
   process.send?.({ type: 'nope' })
   setTimeout(() => { process.exit(0) }, 1000)
 } else {
+  if (process.env.FIXTURE_MODE === 'usage' && process.env.DSH_DESKTOP_REPORT_MODEL_USAGE === '1') {
+    process.send?.({ type: 'model-token-usage', report: { inputTokens: -1 } })
+    process.send?.({
+      type: 'model-token-usage',
+      report: {
+        sessionId: 'fixture', modelName: 'model', requestKind: 'chat', usedAt: 1,
+        inputTokens: 3, outputTokens: 4, cacheReadTokens: null, cacheWriteTokens: null,
+        messages: ['field excluded by the Desktop bridge']
+      }
+    })
+  }
   process.send?.({ type: 'ready', url: 'http://127.0.0.1:9/', injections: ['boot'] })
   process.on('message', message => {
     if (typeof message === 'object' && message !== null && 'type' in message && message.type === 'shutdown') {

@@ -43,6 +43,7 @@ import { buildWebImportViewModel } from '../web-import-view'
 import { DesktopBackendController } from './backend/backend-controller'
 import { DesktopBootSession, retainDesktopBoot } from './backend/boot-session'
 import { DesktopHostFatalError, DesktopHostProcess } from './backend/host-process'
+import { createPackagedTokenReporter } from './backend/sql-token-reporter'
 import { continueAfterHostStartup, createHostFailureIntake } from './host-failure-intake'
 import { readDesktopLoginShellEnvironment, resolveDesktopLoginShellConfig } from './backend/login-shell-environment'
 import { attachDesktopStorage } from './desktop-storage-bridge'
@@ -125,6 +126,7 @@ interface DesktopPackageMetadata {
   productName?: string
   dshDesktopChannel?: string
   dshDesktopHideSidebarManagement?: boolean
+  dshDesktopPackagedSqlUsage?: boolean
   build?: {
     productName?: string
     appId?: string
@@ -882,6 +884,9 @@ async function main(): Promise<void> {
       await reportFatal(failure)
     }
   })
+  const tokenReporter = app.isPackaged && !safeMode && readDesktopPackageMetadata().dshDesktopPackagedSqlUsage === true
+    ? createPackagedTokenReporter(process.resourcesPath) : undefined
+  if (tokenReporter !== undefined) app.once('will-quit', () => tokenReporter.dispose())
   backend = new DesktopBackendController(onFailure => {
     const host = new DesktopHostProcess({
       // Market installs re-exec this binary. The macOS Helper stays in Node mode;
@@ -900,6 +905,7 @@ async function main(): Promise<void> {
       },
       primaryRuntime,
       onFailure,
+      onModelUsage: tokenReporter?.enqueue,
       onPluginOperation: record => { operationJournal.enqueue(JSON.stringify(record)) }
     })
     desktopHost = host

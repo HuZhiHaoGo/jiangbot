@@ -2,6 +2,15 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { parseFileAddress } from '@deepseek-ai/dsh-util-workspace-path'
 import { SessionId, type SessionId as SessionIdentity } from '@deepseek-ai/dsh-session/types'
+import { observeTokenUsage } from './token-usage-report'
+import type { TokenUsageReport } from '../shared/token-usage-report'
+
+/** Cordis owns the lifetime of this waterfall listener, including an LLM reload. */
+export function subscribeModelUsage(ctx: Context, publish: (report: TokenUsageReport) => void): void {
+  ctx.inject(['llm'], llmCtx => {
+    llmCtx.on('llm/stream', (options, next) => observeTokenUsage(options, next(), publish))
+  })
+}
 
 /** The profile context methods this host uses for operation diagnostics. */
 export interface PluginOperationHost {

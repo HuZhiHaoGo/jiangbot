@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { PlatformSession } from '@deepseek-ai/dsh-deepseek-account'
 import { parsePluginOperationRecord, type PluginOperationRecord } from '@deepseek-ai/dsh-plugin-manager/diagnostic'
 import { desktopNodeEnvironment } from './node-environment'
+import { parseTokenUsageReport, type TokenUsageReport } from '../../../shared/token-usage-report'
 
 interface ReadyEvent {
   readonly type: 'ready'
@@ -94,6 +95,7 @@ export interface DesktopHostProcessOptions {
   onFailure?: (error: Error) => void
   onPlatformSession?: (session: PlatformSession | null) => void
   onPluginOperation?: (record: PluginOperationRecord) => void
+  onModelUsage?: ((report: TokenUsageReport) => void) | undefined
 }
 
 /** One Web backend running under the Electron executable in Node mode. */
@@ -134,7 +136,8 @@ export class DesktopHostProcess {
       cwd: this.options.projectDir,
       env: desktopNodeEnvironment(this.options.node, undefined, {
         ...this.options.environment,
-        DSH_DESKTOP_PROFILE: this.options.profile ?? 'desktop'
+        DSH_DESKTOP_PROFILE: this.options.profile ?? 'desktop',
+        DSH_DESKTOP_REPORT_MODEL_USAGE: this.options.onModelUsage === undefined ? '' : '1'
       }, this.options.dshHome),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc']
     })
@@ -217,6 +220,15 @@ export class DesktopHostProcess {
   }
 
   private receive(child: ChildProcess, message: unknown): void {
+    if (typeof message === 'object' && message !== null && 'type' in message && message.type === 'model-token-usage') {
+      if (this.child === child && !this.stopping && 'report' in message) {
+        const report = parseTokenUsageReport(message.report)
+        if (report !== undefined) {
+          try { this.options.onModelUsage?.(report) } catch { console.warn('[token-usage] Desktop could not queue usage report') }
+        }
+      }
+      return
+    }
     if (typeof message === 'object' && message !== null && 'type' in message && message.type === 'plugin-operation') {
       const record = 'record' in message ? parsePluginOperationRecord(message.record) : undefined
       if (record !== undefined && record.runId === this.runId) {
