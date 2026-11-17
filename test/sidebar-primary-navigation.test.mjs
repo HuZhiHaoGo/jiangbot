@@ -151,7 +151,7 @@ describe('sidebar primary navigation public slot', () => {
 })
 
 describe('sidebar More entries', () => {
-  it.each([false, true])('limits only the sidebar plugin actions when hideSidebarManagement=%s', async hideSidebarManagement => {
+  it.each([false, true])('filters plugin actions while preserving other More operations when hideSidebarManagement=%s', async hideSidebarManagement => {
     let plugin
     const registrations = new Map()
     const jsx = (type, props, key) => ({ type, props, key })
@@ -166,9 +166,14 @@ describe('sidebar More entries', () => {
     const startSession = vi.fn()
     const onDismiss = vi.fn()
     const tokenUsage = vi.fn()
+    const openView = vi.fn()
+    const reorder = vi.fn()
     const t = key => key
     const sidebarActions = 'sidebar.panellist.actions'
+    const conversationActions = 'conversation.session.header.views.actions'
+    const guideActions = 'sidebar.right.tab.guide.actions'
     registrations.set(sidebarActions, [() => jsx('menuitem', { children: 'Token usage', onSelect: tokenUsage })])
+    registrations.set(guideActions, [() => jsx('menuitem', { children: 'Reorder', onSelect: reorder })])
     plugin.apply({
       effect() {}, inject() {},
       locale: { bind: () => t }, get: key => key === 'pluginNavigation' ? { openList } : undefined,
@@ -177,7 +182,8 @@ describe('sidebar More entries', () => {
         inject: (_name, callback) => callback(),
         register: (options, render) => {
           const entries = registrations.get(options.name) ?? []
-          entries.push(() => render({ ...options.inject(), entries: [], t, usePluginNavigation: select => select(true), onDismiss }))
+          const folded = options.name === conversationActions ? [{ id: 'context', label: 'Context' }] : []
+          entries.push(() => render({ ...options.inject(), entries: folded, onOpen: openView, t, usePluginNavigation: select => select(true), onDismiss }))
           registrations.set(options.name, entries)
         }
       }
@@ -193,7 +199,14 @@ describe('sidebar More entries', () => {
       expect(openList).toHaveBeenCalledOnce()
       expect(startSession).toHaveBeenCalledWith(undefined, expect.objectContaining({ prompt: 'createPrompt.sidebar' }))
     }
-    expect(buttons('conversation.session.header.views.actions').map(item => item.props.children)).toEqual(['install', 'create'])
-    expect(buttons('sidebar.right.tab.guide.actions').map(item => item.props.children)).toEqual(['install', 'create'])
+    const conversation = buttons(conversationActions)
+    expect(flatten(conversation[0]).some(node => node.props.children === 'Context')).toBe(true)
+    expect(conversation.slice(1).map(item => item.props.children)).toEqual(hideSidebarManagement ? [] : ['install', 'create'])
+    conversation[0].props.onSelect()
+    expect(openView).toHaveBeenCalledExactlyOnceWith('context')
+    const guide = buttons(guideActions)
+    expect(guide.map(item => item.props.children)).toEqual(['Reorder', ...(hideSidebarManagement ? [] : ['install', 'create'])])
+    guide[0].props.onSelect()
+    expect(reorder).toHaveBeenCalledOnce()
   })
 })
