@@ -58,17 +58,36 @@ async function sidebar({ collapsed = false, panels = [], unpinned = [], contribu
 }
 
 const panels = [{ id: 'plugins', label: 'Plugins', order: 0 }, { id: 'schedules', label: 'Schedules', order: 1 }, { id: 'custom', label: 'Custom', order: 2 }]
+const panelsWithMarket = [panels[0], { id: 'dsh-market', label: 'Plugin Market', order: 1 }, ...panels.slice(1)]
 
 describe('sidebar primary navigation public slot', () => {
-  it.each([false, true])('hides only the Plugins row in the Windows release (collapsed=%s)', async collapsed => {
-    const shell = await sidebar({ collapsed, panels, hideSidebarManagement: true })
+  it.each([false, true])('hides the Plugins and Plugin Market rows in the Windows release (collapsed=%s)', async collapsed => {
+    const shell = await sidebar({ collapsed, panels: panelsWithMarket, hideSidebarManagement: true })
     const tree = flatten(shell.render())
     expect(tree.filter(node => node.type?.name === 'PanelRow').map(node => node.props.id)).toEqual(['schedules', 'custom'])
-    const menu = evaluate(tree.find(node => node.type?.name === 'PanelMoreMenu'))
+    const more = tree.find(node => node.type?.name === 'PanelMoreMenu')
+    expect(more.props.entries.map(entry => entry.id)).toEqual(['schedules', 'custom'])
+    const menu = evaluate(more)
+    more.props.onOpen('dsh-market')
     expect(menu.props.anchor.props.children.props['aria-label']).toBe('panels.more')
     expect(menu.props.children.props.name).toBe('sidebar.panellist.actions')
     menu.props.children.props.owner.onOpen('custom')
     expect(shell.selectPanel).toHaveBeenCalledExactlyOnceWith('custom')
+  })
+
+  it('keeps the Plugin Market row and its navigation in development', async () => {
+    const shell = await sidebar({ panels: panelsWithMarket })
+    const tree = flatten(shell.render())
+    const row = tree.find(node => node.type?.name === 'PanelRow' && node.props.id === 'dsh-market')
+    flatten(evaluate(row)).find(node => node.type === 'button').props.onClick()
+    expect(shell.selectPanel).toHaveBeenCalledExactlyOnceWith('dsh-market')
+  })
+
+  it('omits Plugin Market from panel metadata supplied to Windows release navigation contributions', async () => {
+    const contribution = vi.fn()
+    const shell = await sidebar({ panels: panelsWithMarket, hideSidebarManagement: true, contribution })
+    shell.render()
+    expect(contribution.mock.calls[0][0].panels.map(panel => panel.id)).toEqual(['plugins', 'schedules', 'custom'])
   })
 
   it('keeps native pinned rows and More callbacks when no contribution is registered', async () => {

@@ -1,5 +1,5 @@
 diff --git a/node_modules/@deepseek-ai/dsh-client-ui-sidebar/lib/client.js b/node_modules/@deepseek-ai/dsh-client-ui-sidebar/lib/client.js
-index 8f7ad1e..832b6d0 100644
+index 8f7ad1e..e120cfa 100644
 --- a/node_modules/@deepseek-ai/dsh-client-ui-sidebar/lib/client.js
 +++ b/node_modules/@deepseek-ai/dsh-client-ui-sidebar/lib/client.js
 @@ -82,6 +82,7 @@ window.__ModuleLoader__.load({
@@ -10,7 +10,19 @@ index 8f7ad1e..832b6d0 100644
  						"aria-label": t("session.new.label"),
  						"aria-keyshortcuts": newShortcut?.aria,
  						onClick: () => {
-@@ -371,6 +372,39 @@ window.__ModuleLoader__.load({
+@@ -290,7 +291,10 @@ window.__ModuleLoader__.load({
+ 		* @returns the sidebar element tree.
+ 		*/
+ 		function SidebarRoot({ collapsed, width, drawer, startSession, toggleSidebar, selectPanel, setPinned, trackEntryClick, useRemoteAccess, usePanels, useEntryPins, useEntryActions, useShortcuts, usePanelInfo, t, renderSlot }) {
+-			const panels = usePanels((snapshot) => snapshot);
++			const registeredPanels = usePanels((snapshot) => snapshot);
++			const panels = window.dshDesktop?.hideSidebarManagement === true
++				? registeredPanels.filter(({ id }) => id !== "dsh-market")
++				: registeredPanels;
+ 			const unpinned = useEntryPins((ids) => ids);
+ 			const activePanelId = usePanelInfo((info) => info.activePanelId);
+ 			const hasEntryActions = useEntryActions((registered) => registered);
+@@ -371,6 +375,39 @@ window.__ModuleLoader__.load({
  				});
  			};
  			const darwinDesktop = (0, _deepseek_ai_dsh_client_ui_primitives.isDarwinDesktop)();
@@ -50,7 +62,7 @@ index 8f7ad1e..832b6d0 100644
  			const toggle = (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
  				label: toggleLabel,
  				shortcutKeys: shortcut?.keys,
-@@ -403,6 +437,8 @@ window.__ModuleLoader__.load({
+@@ -403,6 +440,8 @@ window.__ModuleLoader__.load({
  			});
  			return (0, react_jsx_runtime.jsxs)("div", {
  				ref: column,
@@ -59,7 +71,7 @@ index 8f7ad1e..832b6d0 100644
  				onFocusCapture: (event) => {
  					sidebarFocus.current = event.target;
  				},
-@@ -426,22 +462,16 @@ window.__ModuleLoader__.load({
+@@ -426,22 +465,16 @@ window.__ModuleLoader__.load({
  						"data-window-drag": true,
  						children: toggle
  					}),
@@ -85,7 +97,7 @@ index 8f7ad1e..832b6d0 100644
  									className: SidebarRoot_module_css_default.brandName,
  									children: renderSlot("sidebar.brand.name", {}, { fallback: buildVersion === void 0 ? (0, react_jsx_runtime.jsx)("span", {
  										className: SidebarRoot_module_css_default.fallbackBrandName,
-@@ -474,7 +504,7 @@ window.__ModuleLoader__.load({
+@@ -474,7 +507,7 @@ window.__ModuleLoader__.load({
  								},
  								children: identity
  							});
@@ -94,7 +106,7 @@ index 8f7ad1e..832b6d0 100644
  					}),
  					canStartSession && (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
  						label: t("session.new.label"),
-@@ -485,6 +515,7 @@ window.__ModuleLoader__.load({
+@@ -485,6 +518,7 @@ window.__ModuleLoader__.load({
  						children: (0, react_jsx_runtime.jsxs)("button", {
  							type: "button",
  							className: SidebarRoot_module_css_default.newSession,
@@ -102,7 +114,7 @@ index 8f7ad1e..832b6d0 100644
  							"aria-label": t("session.new.label"),
  							"aria-keyshortcuts": newShortcut?.aria,
  							onClick: openNewSession,
-@@ -504,39 +535,60 @@ window.__ModuleLoader__.load({
+@@ -504,39 +538,60 @@ window.__ModuleLoader__.load({
  							})]
  						})
  					}),
@@ -194,7 +206,7 @@ index 8f7ad1e..832b6d0 100644
  					}),
  					(0, react_jsx_runtime.jsx)("div", {
  						className: SidebarRoot_module_css_default.regionArea,
-@@ -560,8 +612,9 @@ window.__ModuleLoader__.load({
+@@ -560,8 +615,9 @@ window.__ModuleLoader__.load({
  							className: SidebarRoot_module_css_default.footerActions,
  							children: renderSlot("sidebar.footer.action", { wide })
  						}), (0, react_jsx_runtime.jsx)("div", {
@@ -205,7 +217,7 @@ index 8f7ad1e..832b6d0 100644
  						})]
  					})
  				]
-@@ -746,6 +799,14 @@ window.__ModuleLoader__.load({
+@@ -746,6 +802,14 @@ window.__ModuleLoader__.load({
  						kind: "single",
  						scope: "root"
  					},
@@ -220,7 +232,7 @@ index 8f7ad1e..832b6d0 100644
  					"sidebar.panellist": {
  						kind: "list",
  						scope: "root"
-@@ -762,6 +823,10 @@ window.__ModuleLoader__.load({
+@@ -762,6 +826,10 @@ window.__ModuleLoader__.load({
  						kind: "single",
  						scope: "root"
  					},
