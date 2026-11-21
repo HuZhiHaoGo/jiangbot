@@ -628,7 +628,17 @@ index e5a03f0..501b392 100644
  			const [dismissedSetup, setDismissedSetup] = (0, react.useState)(() => /* @__PURE__ */ new Set());
  			const announceSaved = (target) => {
  				controller.load().then(() => {
-@@ -2591,6 +2845,10 @@ window.__ModuleLoader__.load({
+@@ -2583,7 +2837,8 @@ window.__ModuleLoader__.load({
+ 				displayName: savedRow.entry.displayName
+ 			};
+ 			const anyUsable = state.rows.some(providerUsable);
+-			const configured = state.rows.filter((row) => row.configured);
++			const hideDefaultDeepSeek = window.dshDesktop?.hideDefaultDeepSeekModelSettings === true;
++			const configured = state.rows.filter((row) => row.configured && !(hideDefaultDeepSeek && row.entry.provider === "deepseek-official"));
+ 			const configurable = state.rows.filter((row) => state.namespaces.has(row.entry.settingsNs));
+ 			const addable = state.rows.flatMap((row) => {
+ 				const namespace = state.namespaces.get(row.entry.settingsNs);
+@@ -2591,6 +2846,10 @@ window.__ModuleLoader__.load({
  					row,
  					namespace
  				}];

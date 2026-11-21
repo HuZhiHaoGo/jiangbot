@@ -3,6 +3,53 @@ import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { expect, it } from 'vitest'
 
+it.each([undefined, false, true])('renders model settings with the DeepSeek card flag set to %s', async hideDefaultDeepSeekModelSettings => {
+  const require = createRequire(import.meta.url)
+  const path = require.resolve('@deepseek-ai/dsh-client-ui-settings-models/package.json').replace('package.json', 'lib/client.js')
+  const source = (await readFile(path, 'utf8')).replace('exports.apply = apply;', 'exports.ModelsSection = ModelsSection; exports.apply = apply;')
+  const react = { useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}], useId: () => 'models' }
+  const jsx = (type, props) => typeof type === 'function' ? type(props) : { type, props }
+  let ModelsSection
+  vm.runInNewContext(source, { window: {
+    dshDesktop: hideDefaultDeepSeekModelSettings === undefined ? undefined : { hideDefaultDeepSeekModelSettings },
+    __ModuleLoader__: { load({ factory }) {
+      ModelsSection = factory(id => ({
+        react,
+        'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'fragment' },
+        '@deepseek-ai/dsh-client-ui-primitives': {},
+        '@deepseek-ai/dsh-client-store': {}
+      })[id]).ModelsSection
+    } }
+  } })
+
+  const state = {
+    status: 'ready',
+    writable: true,
+    namespaces: new Map([['llm-deepseek', {}], ['test-provider', {}]]),
+    rows: [
+      { entry: { provider: 'deepseek-official', settingsNs: 'llm-deepseek', settingsPath: [], displayName: 'DeepSeek', active: true }, configured: true },
+      { entry: { provider: 'custom-deepseek', settingsNs: 'test-provider', settingsPath: ['custom'], displayName: 'DeepSeek', active: true }, configured: true },
+      { entry: { provider: 'another-provider', settingsNs: 'test-provider', settingsPath: ['another'], displayName: 'Another provider' }, configured: false }
+    ]
+  }
+  const tree = ModelsSection({
+    controller: {},
+    useSnapshot: select => select(state),
+    operations: {},
+    schema: {},
+    t: key => key === 'editProvider' ? 'Edit {provider}' : key,
+    renderSlot: () => null
+  })
+  const flatten = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(flatten) : [node, ...flatten(node.props?.children)]
+  const buttons = flatten(tree).filter(node => node.type === 'button')
+  const editLabels = buttons.map(button => button.props['aria-label']).filter(Boolean)
+  expect(editLabels).toEqual(hideDefaultDeepSeekModelSettings
+    ? ['Edit DeepSeek (custom-deepseek)']
+    : ['Edit DeepSeek (deepseek-official)', 'Edit DeepSeek (custom-deepseek)'])
+  const addButton = buttons.find(button => Array.isArray(button.props.children) && button.props.children.includes('add'))
+  expect(addButton?.props.disabled).toBe(false)
+})
+
 it.each(['DeepSeekModelsEditor', 'ModelListEditor'])('%s expands options and edits capacity without losing other capabilities', async (editorName) => {
   const require = createRequire(import.meta.url)
   const path = require.resolve('@deepseek-ai/dsh-client-ui-settings-models/package.json').replace('package.json', 'lib/client.js')

@@ -331,6 +331,14 @@ describe('GitHub release contract', () => {
     expect(workflow).toContain('node scripts/release/electron-builder-windows.mjs --win --x64 --publish never')
   })
 
+  it('enables the DeepSeek settings card override only for package:win', async () => {
+    const packageJson = JSON.parse(
+      await readFile(path.join(projectRoot, 'package.json'), 'utf8')
+    ) as { scripts: Record<string, string> }
+    const flag = '--config.extraMetadata.dshDesktopHideDefaultDeepSeekModelSettings=true'
+    expect(Object.keys(packageJson.scripts).filter(script => packageJson.scripts[script]?.includes(flag))).toEqual(['package:win'])
+  })
+
   it('packages an isolated development channel from the current workspace', async () => {
     const packageJson = JSON.parse(
       await readFile(path.join(projectRoot, 'package.json'), 'utf8')

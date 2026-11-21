@@ -13,6 +13,7 @@ import { appBundlePathFromExecutable, quarantineAppBundleLaunchAgents } from '..
 import { DESKTOP_SCHEME, installDesktopProtocol } from '../desktop-protocol'
 import { normalRelaunchArguments, relaunchArguments, shouldStartInSafeMode } from '../safe-mode'
 import { HIDE_SIDEBAR_MANAGEMENT_FLAG } from '../../shared/desktop-sidebar'
+import { HIDE_DEFAULT_DEEPSEEK_MODEL_SETTINGS_FLAG } from '../../shared/desktop-model-settings'
 import { RepairDrafts } from '../repair-drafts'
 import { RepairAgentService } from '../repair-agent'
 import { RepairSessionStore } from '../recovery/repair-agent-sessions'
@@ -129,6 +130,7 @@ interface DesktopPackageMetadata {
   dshDesktopChannel?: string
   dshDesktopHideSidebarManagement?: boolean
   dshDesktopPackagedSqlUsage?: boolean
+  dshDesktopHideDefaultDeepSeekModelSettings?: boolean
   build?: {
     productName?: string
     appId?: string
@@ -600,8 +602,10 @@ async function main(): Promise<void> {
     const brand = await readSafeHeroBrand(dshHome)
     if (brand !== undefined) rendererArguments.push(safeHeroBrandArgument(brand))
   }
-  if (process.platform === 'win32' && app.isPackaged && readDesktopPackageMetadata().dshDesktopHideSidebarManagement === true) {
-    rendererArguments.push(HIDE_SIDEBAR_MANAGEMENT_FLAG)
+  if (process.platform === 'win32' && app.isPackaged) {
+    const metadata = readDesktopPackageMetadata()
+    if (metadata.dshDesktopHideSidebarManagement === true) rendererArguments.push(HIDE_SIDEBAR_MANAGEMENT_FLAG)
+    if (metadata.dshDesktopHideDefaultDeepSeekModelSettings === true) rendererArguments.push(HIDE_DEFAULT_DEEPSEEK_MODEL_SETTINGS_FLAG)
   }
   const window = createWindow(preload, importPage, splashPage, rendererArguments)
   desktopWindow = window

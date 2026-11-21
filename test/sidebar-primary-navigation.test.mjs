@@ -61,10 +61,13 @@ const panels = [{ id: 'plugins', label: 'Plugins', order: 0 }, { id: 'schedules'
 const panelsWithMarket = [panels[0], { id: 'dsh-market', label: 'Plugin Market', order: 1 }, ...panels.slice(1)]
 
 describe('sidebar primary navigation public slot', () => {
-  it.each([false, true])('hides the Plugins and Plugin Market rows in the Windows release (collapsed=%s)', async collapsed => {
-    const shell = await sidebar({ collapsed, panels: panelsWithMarket, hideSidebarManagement: true })
+  it.each([false, true])('opens Plugins while keeping Plugin Market hidden in the Windows release (collapsed=%s)', async collapsed => {
+    const shell = await sidebar({ collapsed, panels: panelsWithMarket, unpinned: ['plugins'], hideSidebarManagement: true })
     const tree = flatten(shell.render())
-    expect(tree.filter(node => node.type?.name === 'PanelRow').map(node => node.props.id)).toEqual(['schedules', 'custom'])
+    const rows = tree.filter(node => node.type?.name === 'PanelRow')
+    expect(rows.map(node => node.props.id)).toEqual(['plugins', 'schedules', 'custom'])
+    flatten(evaluate(rows[0])).find(node => node.type === 'button').props.onClick()
+    expect(shell.selectPanel).toHaveBeenCalledExactlyOnceWith('plugins')
     const more = tree.find(node => node.type?.name === 'PanelMoreMenu')
     expect(more.props.entries.map(entry => entry.id)).toEqual(['schedules', 'custom'])
     const menu = evaluate(more)
@@ -72,7 +75,7 @@ describe('sidebar primary navigation public slot', () => {
     expect(menu.props.anchor.props.children.props['aria-label']).toBe('panels.more')
     expect(menu.props.children.props.name).toBe('sidebar.panellist.actions')
     menu.props.children.props.owner.onOpen('custom')
-    expect(shell.selectPanel).toHaveBeenCalledExactlyOnceWith('custom')
+    expect(shell.selectPanel.mock.calls).toEqual([['plugins'], ['custom']])
   })
 
   it('keeps the Plugin Market row and its navigation in development', async () => {

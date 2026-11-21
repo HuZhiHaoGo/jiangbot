@@ -156,7 +156,7 @@ index 8f7ad1e..e120cfa 100644
 +						fallback: panels.length > 0 && (0, react_jsx_runtime.jsxs)("nav", {
 +							className: SidebarRoot_module_css_default.panelList,
 +							"aria-label": t("panels.label"),
-+							children: [panels.filter(({ id }) => id === "plugins" ? window.dshDesktop?.hideSidebarManagement !== true : !unpinned.includes(id)).map(({ id, label }) => (0, react_jsx_runtime.jsx)(PanelRow, {
++							children: [panels.filter(({ id }) => id === "plugins" || !unpinned.includes(id)).map(({ id, label }) => (0, react_jsx_runtime.jsx)(PanelRow, {
  								id,
  								label,
 -								pinned: !unpinned.includes(id),
